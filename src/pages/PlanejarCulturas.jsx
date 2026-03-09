@@ -295,7 +295,7 @@ const confirmarModalCultura = () => {
     <div className="flex flex-col h-full bg-gray-50 min-h-screen pt-12 lg:pt-0">
       <Header title="Planejar Culturas" />
       
-      <main className="px-4 lg:px-8 py-4 animate-fade-in pb-32">
+      <main className="px-4 lg:px-8 py-4 animate-fade-in">
         
        {/* VIEW 1: DASHBOARD DE SAFRAS (MESCLADO) */}
         {currentView === 'list_safras' && (
@@ -336,27 +336,34 @@ const confirmarModalCultura = () => {
                   return (
                     <div key={safra.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 animate-fade-in">
                       
-                      {/* CABEÇALHO DA SAFRA E BOTÕES DE AÇÃO */}
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5 border-b border-gray-100 pb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="bg-emerald-50 p-2 rounded-lg text-emerald-600">
-                            <CalendarDays size={20} />
+                      {/* CABEÇALHO DA SAFRA E BOTÕES DE AÇÃO (LINHA ÚNICA NO MOBILE) */}
+                      <div className="flex flex-row items-center justify-between gap-2 mb-5 border-b border-gray-100 pb-4">
+                        
+                        {/* TÍTULO (Esconde "Culturas Planejadas" no Mobile) */}
+                        <div className="flex items-center gap-2 md:gap-3 overflow-hidden">
+                          <div className="bg-emerald-50 p-2 md:p-2.5 rounded-lg text-emerald-600 shrink-0">
+                            <CalendarDays size={18} className="md:w-5 md:h-5" />
                           </div>
-                          <h2 className="text-lg font-bold text-gray-800">
-                            Culturas Planejadas <span className="text-gray-400 font-medium ml-1">Safra {safra.safra}</span>
-                          </h2>
+                          <div className="flex flex-col md:flex-row md:items-baseline md:gap-1.5 truncate">
+                            <h2 className="hidden md:block text-lg font-bold text-gray-800">Culturas Planejadas</h2>
+                            <span className="font-bold text-gray-700 md:text-gray-400 md:font-medium text-base md:text-lg truncate">Safra {safra.safra}</span>
+                          </div>
                         </div>
                         
-                        <div className="flex items-center gap-2">
+                        {/* BOTÕES DE AÇÃO (Esconde o texto no Mobile, vira botão quadrado só com ícone) */}
+                        <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
                           <button 
                             onClick={() => abrirDistribuicao(safra.id)} 
-                            className={`flex-1 md:flex-none text-sm font-semibold py-2 px-5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-sm border ${isStarted ? 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50' : 'bg-emerald-600 text-white border-transparent hover:bg-emerald-700'}`}
+                            className={`text-sm font-semibold p-2.5 md:py-2 md:px-5 rounded-lg md:rounded-xl flex items-center justify-center gap-2 transition-all shadow-sm border ${isStarted ? 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50' : 'bg-emerald-600 text-white border-transparent hover:bg-emerald-700'}`}
+                            title={isStarted ? 'Editar Distribuição' : 'Distribuir Culturas'}
                           >
-                            <Map size={16} /> {isStarted ? 'Editar Distribuição' : 'Distribuir Culturas'}
+                            <Map size={18} className="md:w-4 md:h-4" /> 
+                            <span className="hidden md:block">{isStarted ? 'Editar Distribuição' : 'Distribuir Culturas'}</span>
                           </button>
+                          
                           <button 
                             onClick={(e) => handleDeleteSafra(e, safra.id, safra.safra)} 
-                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 rounded-xl transition-all" 
+                            className="p-2.5 md:p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 rounded-lg md:rounded-xl transition-all" 
                             title="Excluir Safra"
                           >
                             <Trash size={18} />
@@ -445,27 +452,47 @@ const confirmarModalCultura = () => {
 
         {/* VIEW 3 FOI MESCLADA COM A VIEW 1 */}
 
-        {/* VIEW 4: DISTRIBUIR CULTURAS (MINI-CARDS FLAT) */}
+       {/* VIEW 4: DISTRIBUIR CULTURAS (MINI-CARDS FLAT) */}
         {currentView === 'distribute' && safraAtiva && (
-          <div>
-            <div className="flex justify-between items-center mb-6">
-              <button onClick={() => setCurrentView('list_safras')} className="flex items-center gap-2 text-gray-500 hover:text-emerald-600 font-semibold transition-colors"><ArrowLeft size={20} /> Voltar</button>
+          <div className="pb-32 min-h-screen animate-fade-in">
+            
+            {/* CABEÇALHO FIXO COM AÇÕES (STICKY + GLASSMORPHISM) */}
+            <div className="sticky top-0 z-40 flex flex-row items-center justify-between gap-4 mb-6 bg-gray-50/80 backdrop-blur-md p-4 rounded-b-2xl shadow-sm border-b border-gray-200/50 -mx-4 px-4 lg:-mx-8 lg:px-8">
               
-              {!isSelectionMode ? (
-                <button onClick={() => setIsSelectionMode(true)} className="text-sm font-bold text-emerald-700 bg-emerald-50 px-4 py-2 rounded-xl border border-emerald-200 shadow-sm hover:bg-emerald-100 transition-colors">
-                  Modo de Seleção (Lote)
+              {/* TÍTULO E BOTÃO DE VOLTAR */}
+              <div className="flex items-center gap-3">
+                <button onClick={() => setCurrentView('list_safras')} className="text-gray-400 hover:text-emerald-600 transition-colors p-2 bg-white rounded-xl shadow-sm border border-gray-100 shrink-0">
+                  <ArrowLeft size={20} />
                 </button>
-              ) : (
-                <div className="flex items-center gap-2 animate-fade-in">
-                  <button onClick={() => selecionarTodosLote()} className="text-sm font-bold text-emerald-700 bg-emerald-100 px-4 py-2 rounded-xl border border-emerald-300 shadow-sm hover:bg-emerald-200 transition-colors">
-                    {loteSelecionados.length === (talhoes || []).length ? 'Desmarcar Todos' : 'Selecionar Todos'}
-                  </button>
-                  <button onClick={() => { setIsSelectionMode(false); setLoteSelecionados([]); }} className="text-gray-500 hover:text-red-500 bg-white border border-gray-200 p-2 rounded-xl shadow-sm" title="Sair"><X size={20} /></button>
+                <div className="flex flex-col">
+                  <h2 className="text-lg md:text-xl font-black text-gray-800 flex items-center gap-2">
+                    Distribuição em Lote
+                  </h2>
+                  <p className="text-[10px] md:text-xs font-semibold text-gray-400 uppercase tracking-widest">Selecione e aplique</p>
                 </div>
-              )}
+              </div>
+              
+              {/* BOTÃO DE SELEÇÃO (ICONE NO MOBILE) */}
+              <div className="flex items-center gap-2">
+                {!isSelectionMode ? (
+                  <button onClick={() => setIsSelectionMode(true)} className="text-emerald-600 bg-white border border-emerald-200 p-2.5 md:px-4 md:py-2.5 rounded-xl shadow-sm hover:bg-emerald-50 transition-colors flex items-center justify-center gap-2" title="Alterar Cultura em Lote">
+                    <Leaf size={18} /> <span className="hidden md:block font-semibold text-sm">Alterar Culturas</span>
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2 animate-fade-in">
+                    <button onClick={() => selecionarTodosLote()} className="text-xs md:text-sm font-semibold text-emerald-700 bg-emerald-50 px-3 py-2.5 rounded-xl border border-emerald-200 shadow-sm hover:bg-emerald-100 transition-colors whitespace-nowrap">
+                      {loteSelecionados.length === (talhoes || []).length ? 'Desmarcar' : 'Tudo'}
+                    </button>
+                    <button onClick={() => { setIsSelectionMode(false); setLoteSelecionados([]); }} className="text-gray-500 hover:text-red-500 bg-white border border-gray-200 p-2.5 rounded-xl shadow-sm shrink-0 flex items-center justify-center" title="Sair do Modo Seleção">
+                      <X size={18} />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
-{/* FAIXA DE RESUMO E FILTRO (DESIGN SLIM/LEVE) */}
-            <div className="flex overflow-x-auto gap-3 pb-4 pt-1 px-1 mb-6 hide-scrollbar">
+
+            {/* FAIXA DE RESUMO E FILTRO (DESIGN SLIM/LEVE) */}
+            <div className="flex flex-wrap gap-3 pb-4 pt-1 px-1 mb-6">
               <div onClick={() => setFiltroCultura(null)} className={`flex-shrink-0 flex flex-col justify-center px-4 py-3 rounded-xl border cursor-pointer transition-all min-w-[120px] ${!filtroCultura ? 'bg-gray-50 text-gray-800 border-gray-300 shadow-inner' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}>
                 <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 flex items-center gap-1 mb-0.5"><Filter size={12}/> Mostrar Todos</span>
                 <span className="font-semibold text-lg leading-tight">{resumoDinamico.areaTotalPlanejada.toLocaleString('pt-BR')} ha</span>
@@ -485,8 +512,8 @@ const confirmarModalCultura = () => {
                       boxShadow: isSelected ? `0 0 0 1px ${corCultura}` : 'none'
                     }}
                   >
-                    <span className="text-[11px] font-semibold tracking-wide text-gray-500 truncate max-w-[110px] mb-1 flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: corCultura }}></div>
+                    <span className="text-sm font-bold tracking-wide text-gray-600 truncate max-w-[130px] mb-1 flex items-center gap-1.5">
+                      <Leaf size={14} style={{ color: corCultura }} />
                       {getCulturaNome(item.id)}
                     </span>
                     {/* A fonte continua cinza sempre, apenas as bordas mudam de cor */}
@@ -516,7 +543,8 @@ const confirmarModalCultura = () => {
 
                 return (
                   <div key={retiro} className="mb-8">
-                    <div className="mb-3 px-2 border-b border-gray-100 pb-2">
+                    <div className="mb-3 px-2 border-b border-gray-100 pb-2 flex items-center gap-2">
+                      <Map size={14} className="text-gray-400" />
                       <span className="text-xs font-semibold text-gray-500 uppercase tracking-widest">{retiro}</span>
                     </div>
 
@@ -531,65 +559,67 @@ const confirmarModalCultura = () => {
                               if (filtroCultura && row.culturaId !== filtroCultura && row.culturaId !== '') return null;
 
                               return (
-                                <div key={row.tempId} className="flex items-center gap-2 w-full overflow-x-auto pb-2 hide-scrollbar min-w-max animate-fade-in">
+                                <div key={row.tempId} className="mb-2 md:mb-1.5 animate-fade-in relative flex flex-row items-center gap-1.5 md:gap-2 w-full">
                                   
                                   {/* MINI-CARD: CHECKBOX */}
                                   {isSelectionMode && index === 0 && (
-                                    <div className="shrink-0 mr-1 cursor-pointer" onClick={() => handleToggleLote(talhao.id)}>
-                                      {isSelected ? <CheckSquare className="text-emerald-500" size={24}/> : <Square className="text-gray-300" size={24}/>}
+                                    <div className="shrink-0 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleToggleLote(talhao.id); }}>
+                                      {isSelected ? <CheckSquare className="text-emerald-500" size={20}/> : <Square className="text-gray-300" size={20}/>}
                                     </div>
                                   )}
-                                  {isSelectionMode && index !== 0 && <div className="w-[30px] shrink-0 mr-1"></div>}
+                                  {isSelectionMode && index !== 0 && <div className="w-[20px] shrink-0 hidden md:block"></div>}
 
-                                 {/* MINI-CARD: NOME DO TALHÃO (AGORA CLICÁVEL NO MODO SELEÇÃO) */}
+                                  {/* NOME DO TALHÃO (Cápsula 1) */}
                                   <div 
                                     onClick={() => isSelectionMode && handleToggleLote(talhao.id)}
-                                    className={`border rounded-xl px-4 py-2.5 w-40 shrink-0 flex items-center justify-between shadow-sm transition-all ${isSelectionMode ? 'cursor-pointer hover:border-emerald-400 hover:bg-emerald-50' : ''} ${index === 0 ? 'bg-white border-gray-200' : 'bg-gray-50/50 border-gray-100 opacity-80'}`}
+                                    className={`border rounded-xl px-2 py-2.5 w-16 md:w-32 shrink-0 flex items-center justify-center md:justify-start transition-all ${isSelectionMode ? 'cursor-pointer hover:border-emerald-400 hover:bg-emerald-50' : ''} ${index === 0 ? 'bg-white border-gray-200 shadow-sm' : 'bg-transparent border-transparent md:border-gray-100 opacity-80'}`}
                                   >
-                                    <span className={`font-semibold truncate text-sm ${index === 0 ? 'text-gray-700' : 'text-gray-400 font-medium'}`}>
+                                    <span className={`font-semibold truncate text-[11px] md:text-sm ${index === 0 ? 'text-gray-700' : 'text-gray-400'}`}>
                                       {index === 0 ? talhao.nome : '↳ Divisão'}
                                     </span>
                                   </div>
 
-                                  {/* MINI-CARD: ÁREA (LEVE) */}
-                                  <div className={`bg-white border border-gray-200 shadow-sm rounded-xl flex items-center w-32 shrink-0 transition-all ${isSelectionMode ? 'opacity-60 bg-gray-50' : 'focus-within:border-emerald-400 focus-within:ring-1 focus-within:ring-emerald-100'}`}>
+                                  {/* ÁREA (Cápsula 2) */}
+                                  <div className={`bg-white border border-gray-200 shadow-sm rounded-xl flex items-center w-20 md:w-28 shrink-0 transition-all ${isSelectionMode ? 'opacity-60 bg-gray-50' : 'focus-within:border-emerald-400 focus-within:ring-1 focus-within:ring-emerald-100'}`}>
                                     <input
                                       type="number"
                                       step="0.01"
                                       value={row.areaHa}
                                       onChange={(e) => handleUpdateAreaRaw(talhao.id, row.tempId, 'areaHa', e.target.value)}
                                       onBlur={(e) => handleAreaBlur(talhao.id, row.tempId, e.target.value)}
-                                      className={`w-full py-2.5 pl-3 text-center font-medium text-gray-700 bg-transparent outline-none ${isSelectionMode ? 'cursor-not-allowed' : ''}`}
+                                      className={`w-full py-2.5 pl-1.5 md:pl-3 text-center font-semibold text-gray-700 text-[11px] md:text-sm bg-transparent outline-none ${isSelectionMode ? 'cursor-not-allowed' : ''}`}
                                       disabled={isSelectionMode}
                                     />
-                                    <span className="text-[11px] font-medium text-gray-400 pr-3">ha</span>
+                                    <span className="text-[10px] md:text-[11px] font-medium text-gray-400 pr-1.5 md:pr-3">ha</span>
                                   </div>
 
-                                  {/* MINI-CARD: CULTURA (SELECT CLICÁVEL NO MODO SELEÇÃO) */}
+                                  {/* CULTURA (Cápsula 3) */}
                                   <div 
                                     onClick={() => isSelectionMode && handleToggleLote(talhao.id)}
-                                    className={`border shadow-sm rounded-xl flex-1 min-w-[200px] transition-all overflow-hidden ${isSelectionMode ? 'cursor-pointer hover:border-emerald-400 hover:bg-emerald-50' : 'focus-within:border-emerald-400 focus-within:ring-1 focus-within:ring-emerald-100'} ${!row.culturaId ? 'bg-gray-50 border-gray-200' : 'bg-white border-gray-200'}`}
-                                    style={{ borderLeft: row.culturaId ? `5px solid ${getCulturaCor(row.culturaId)}` : undefined }}
+                                    className={`bg-white border shadow-sm rounded-xl flex-1 md:w-48 shrink-0 transition-all overflow-hidden ${isSelectionMode ? 'cursor-pointer hover:border-emerald-300 hover:bg-emerald-50/30' : 'focus-within:border-emerald-400 focus-within:ring-1 focus-within:ring-emerald-100'} ${!row.culturaId ? 'bg-emerald-50/30 border-emerald-100' : 'border-gray-200'}`}
+                                    style={{ borderLeft: row.culturaId ? `4px solid ${getCulturaCor(row.culturaId)}` : undefined }}
                                   >
                                     <select
                                       value={row.culturaId}
                                       onChange={(e) => handleUpdateSelect(talhao.id, row.tempId, 'culturaId', e.target.value)}
-                                      className={`w-full h-full py-2.5 px-4 outline-none font-medium bg-transparent text-gray-700 text-sm ${isSelectionMode ? 'pointer-events-none' : 'cursor-pointer'}`}
+                                      className={`w-full h-full py-2.5 px-2 outline-none font-semibold text-gray-700 text-[11px] md:text-sm bg-transparent ${isSelectionMode ? 'pointer-events-none' : 'cursor-pointer'}`}
                                       tabIndex={isSelectionMode ? -1 : 0}
                                     >
-                                      <option value="" disabled>Selecione a Cultura...</option>
-                                      {culturas.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                                      <option value="" disabled>Cultura...</option>
+                                      {(culturas || []).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
                                     </select>
                                   </div>
 
-                                  {/* MINI-CARD: EXCLUIR */}
-                                  <button
-                                    onClick={() => handleRemoveCulturaRow(talhao.id, row.tempId)}
-                                    className="bg-white border border-gray-200 shadow-sm text-gray-400 hover:text-red-500 hover:bg-red-50 hover:border-red-200 p-2.5 rounded-xl transition-all shrink-0"
-                                    title="Remover divisão"
-                                  >
-                                    <Trash size={18}/>
-                                  </button>
+                                  {/* LIXEIRA (Só mostra se for ramificação, ou seja, index !== 0) */}
+                                  {index !== 0 && (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleRemoveCulturaRow(talhao.id, row.tempId); }}
+                                      className={`bg-white border border-gray-200 shadow-sm text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 md:p-2.5 rounded-xl transition-all shrink-0 ${isSelectionMode ? 'opacity-0 pointer-events-none' : ''}`}
+                                      title="Remover divisão"
+                                    >
+                                      <Trash size={14} className="md:w-[18px] md:h-[18px]" />
+                                    </button>
+                                  )}
                                 </div>
                               );
                             })}

@@ -320,7 +320,7 @@ export default function PlanejarVariedades() {
     <div className="flex flex-col h-full bg-gray-50 min-h-screen pt-12 lg:pt-0">
       <Header title="Planejar Variedades e Taxas" />
       
-      <main className="px-4 lg:px-8 py-4 animate-fade-in pb-32">
+      <main className="px-4 lg:px-8 py-4 animate-fade-in">
         
         {/* VIEW 1: CARDS SLIM DE CULTURAS ATIVAS */}
         {currentView === 'list_cards' && (
@@ -386,50 +386,50 @@ export default function PlanejarVariedades() {
             }, {});
 
             return (
-              <div className="animate-fade-in">
-                {/* CABEÇALHO E BOTÕES DE AÇÃO */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-                  <div className="flex items-center gap-4">
-                    <button onClick={() => setCurrentView('list_cards')} className="text-gray-400 hover:text-blue-600 transition-colors p-2 bg-white rounded-xl shadow-sm border border-gray-100">
+              <div className="animate-fade-in pb-32 min-h-screen">
+                
+                {/* CABEÇALHO E BOTÕES DE AÇÃO (STICKY + GLASSMORPHISM) */}
+                <div className="sticky top-0 z-40 flex flex-row items-center justify-between gap-4 mb-6 bg-gray-50/80 backdrop-blur-md p-4 rounded-b-2xl shadow-sm border-b border-gray-200/50 -mx-4 px-4 lg:-mx-8 lg:px-8">
+                  
+                  {/* TÍTULO E BOTÃO DE VOLTAR */}
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setCurrentView('list_cards')} className="text-gray-400 hover:text-blue-600 transition-colors p-2 bg-white rounded-xl shadow-sm border border-gray-100 shrink-0">
                       <ArrowLeft size={20} />
                     </button>
-                    <div>
-                      <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <div className="flex flex-col">
+                      <h2 className="text-lg md:text-xl font-black text-gray-800 flex items-center gap-2">
                         {culturaNome}
                       </h2>
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mt-0.5">Safra {safra?.safra}</p>
+                      <p className="text-[10px] md:text-xs font-semibold text-gray-400 uppercase tracking-widest">Safra {safra?.safra}</p>
                     </div>
                   </div>
                   
-                  {/* BOTÕES DE SELEÇÃO SLIM E RESPONSIVOS */}
-                  <div className="w-full md:w-auto mt-2 md:mt-0">
+                  {/* BOTÕES DE SELEÇÃO (ICONES NO MOBILE) */}
+                  <div className="flex items-center gap-2">
                     {!selectionMode ? (
-                      <div className="grid grid-cols-2 md:flex md:flex-row gap-2 w-full">
-                        <button onClick={() => setSelectionMode('variedades')} className="text-sm font-semibold text-blue-600 bg-white border border-blue-200 px-2 md:px-4 py-2.5 rounded-xl shadow-sm hover:bg-blue-50 transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap">
-                          <Sprout size={16} className="shrink-0" /> <span className="truncate">Alterar Sementes</span>
+                      <>
+                        <button onClick={() => setSelectionMode('variedades')} className="text-blue-600 bg-white border border-blue-200 p-2.5 md:px-4 md:py-2.5 rounded-xl shadow-sm hover:bg-blue-50 transition-colors flex items-center justify-center gap-2" title="Alterar Sementes">
+                          <Sprout size={18} /> <span className="hidden md:block font-semibold text-sm">Sementes</span>
                         </button>
-                        <button onClick={() => setSelectionMode('taxas')} className="text-sm font-semibold text-orange-600 bg-white border border-orange-200 px-2 md:px-4 py-2.5 rounded-xl shadow-sm hover:bg-orange-50 transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap">
-                          <Calculator size={16} className="shrink-0" /> <span className="truncate">Alterar Taxas</span>
+                        <button onClick={() => setSelectionMode('taxas')} className="text-orange-600 bg-white border border-orange-200 p-2.5 md:px-4 md:py-2.5 rounded-xl shadow-sm hover:bg-orange-50 transition-colors flex items-center justify-center gap-2" title="Alterar Taxas">
+                          <Calculator size={18} /> <span className="hidden md:block font-semibold text-sm">Taxas</span>
                         </button>
-                      </div>
+                      </>
                     ) : (
-                      <div className="flex items-center justify-between md:justify-start gap-2 animate-fade-in w-full">
-                        <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest hidden md:block mr-2">
-                          Modo: {selectionMode === 'variedades' ? 'Sementes' : 'Taxas'}
-                        </span>
-                        <button onClick={() => setLoteSelecionados(loteSelecionados.length === todosUids.length ? [] : todosUids)} className={`flex-1 md:flex-none text-sm font-semibold px-4 py-2.5 rounded-xl border shadow-sm transition-colors whitespace-nowrap ${selectionMode === 'variedades' ? 'text-blue-700 bg-blue-50 border-blue-200' : 'text-orange-700 bg-orange-50 border-orange-200'}`}>
-                          {loteSelecionados.length === todosUids.length ? 'Desmarcar Todos' : 'Selecionar Todos'}
+                      <div className="flex items-center gap-2 animate-fade-in">
+                        <button onClick={() => setLoteSelecionados(loteSelecionados.length === todosUids.length ? [] : todosUids)} className={`text-xs md:text-sm font-semibold px-3 py-2.5 rounded-xl border shadow-sm transition-colors whitespace-nowrap ${selectionMode === 'variedades' ? 'text-blue-700 bg-blue-50 border-blue-200' : 'text-orange-700 bg-orange-50 border-orange-200'}`}>
+                          {loteSelecionados.length === todosUids.length ? 'Desmarcar' : 'Tudo'}
                         </button>
                         <button onClick={() => { setSelectionMode(null); setLoteSelecionados([]); }} className="text-gray-500 hover:text-red-500 bg-white border border-gray-200 p-2.5 rounded-xl shadow-sm shrink-0 flex items-center justify-center" title="Sair do Modo Seleção">
-                          <X size={20} />
+                          <X size={18} />
                         </button>
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* FAIXA DE RESUMO E FILTRO (DESIGN SLIM) */}
-                <div className="flex overflow-x-auto gap-3 pb-4 pt-1 px-1 mb-6 hide-scrollbar">
+                {/* FAIXA DE RESUMO E FILTRO (FLEX-WRAP PARA MÚLTIPLAS LINHAS) */}
+                <div className="flex flex-wrap gap-3 pb-4 pt-1 px-1 mb-6">
                   <div onClick={() => setFiltroVariedade(null)} className={`flex-shrink-0 flex flex-col justify-center px-4 py-3 rounded-xl cursor-pointer transition-all min-w-[120px] ${!filtroVariedade ? 'bg-gray-50 text-gray-800 border border-gray-300 shadow-inner' : 'bg-white text-gray-500 border border-gray-200 hover:border-gray-300'}`}>
                     <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 flex items-center gap-1 mb-0.5"><Filter size={12}/> Mostrar Todos</span>
                     <span className="font-semibold text-lg leading-tight">{resumoDinamico.areaTotalPlanejada.toLocaleString('pt-BR')} ha</span>
@@ -449,8 +449,8 @@ export default function PlanejarVariedades() {
                           boxShadow: isSelected ? `0 0 0 1px ${corVar}` : 'none'
                         }}
                       >
-                        <span className="text-[11px] font-semibold tracking-wide text-gray-500 truncate max-w-[110px] mb-1 flex items-center gap-1.5">
-                          <Sprout size={12} style={{ color: corVar }} />
+                        <span className="text-sm font-bold tracking-wide text-gray-600 truncate max-w-[130px] mb-1 flex items-center gap-1.5">
+                          <Sprout size={14} style={{ color: corVar }} />
                           {getVariedadeNome(item.id)}
                         </span>
                         
@@ -499,7 +499,6 @@ export default function PlanejarVariedades() {
                           {blocosFiltrados.map(({ uid, config, talhao }) => {
                             const rows = config.variedades || [];
                             const isSelected = loteSelecionados.includes(uid);
-                            // Cor do modo dita os detalhes visuais
                             const modeColorText = selectionMode === 'variedades' ? 'text-blue-500' : 'text-orange-500';
                             const modeColorHover = selectionMode === 'variedades' ? 'hover:border-blue-300 hover:bg-blue-50/30' : 'hover:border-orange-300 hover:bg-orange-50/30';
 
@@ -511,24 +510,24 @@ export default function PlanejarVariedades() {
                                   const calcEmb = calcularEmbalagens(parseFloat(row.areaHa), row.taxaId, row.variedadeId);
 
                                   return (
-                                    <div key={row.tempId} className="flex flex-col md:flex-row md:items-center gap-1.5 md:gap-2 w-full pb-2 md:pb-2 border-b border-gray-100 md:border-none mb-2 md:mb-0 animate-fade-in relative">
+                                    <div key={row.tempId} className="mb-2 md:mb-1.5 animate-fade-in relative flex flex-col md:flex-row md:items-center gap-1.5 md:gap-2 w-full">
                                       
-                                      {/* MODO DESKTOP / MODO MOBILE (CABEÇALHO CLICÁVEL) */}
+                                      {/* LINHA PRINCIPAL (CÁPSULAS SOLTAS) */}
                                       <div 
                                         onClick={() => { if(window.innerWidth < 768) setExpandedRows(prev => ({...prev, [row.tempId]: !prev[row.tempId]})) }}
-                                        className="flex items-center gap-1.5 md:gap-2 w-full md:w-auto md:cursor-default cursor-pointer bg-white md:bg-transparent p-2 md:p-0 rounded-xl md:rounded-none border border-gray-100 md:border-none shadow-sm md:shadow-none"
+                                        className="flex flex-row items-center gap-1.5 md:gap-2 w-full md:w-auto md:cursor-default cursor-pointer"
                                       >
                                         
-                                        {/* CHECKBOX (Modo Seleção) */}
+                                        {/* CHECKBOX */}
                                         {selectionMode && index === 0 && (
-                                          <div className="shrink-0 mr-1 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleToggleLote(uid); }}>
+                                          <div className="shrink-0 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleToggleLote(uid); }}>
                                             {isSelected ? <CheckSquare className={modeColorText} size={20}/> : <Square className="text-gray-300" size={20}/>}
                                           </div>
                                         )}
-                                        {selectionMode && index !== 0 && <div className="w-[20px] shrink-0 hidden md:block mr-1"></div>}
+                                        {selectionMode && index !== 0 && <div className="w-[20px] shrink-0 hidden md:block"></div>}
 
                                         {/* NOME DO TALHÃO */}
-                                        <div className={`border rounded-lg md:rounded-xl px-2 py-1.5 md:py-2.5 w-20 md:w-36 shrink-0 flex items-center justify-between transition-all ${index === 0 ? 'bg-gray-50/50 border-gray-200' : 'bg-transparent border-transparent md:border-gray-100 opacity-80'}`}>
+                                        <div className={`border rounded-xl px-2 py-2.5 w-16 md:w-32 shrink-0 flex items-center justify-center md:justify-start transition-all ${index === 0 ? 'bg-white border-gray-200 shadow-sm' : 'bg-transparent border-transparent md:border-gray-100 opacity-80'}`}>
                                           <span className={`font-semibold truncate text-[11px] md:text-sm ${index === 0 ? 'text-gray-700' : 'text-gray-400'}`}>
                                             {index === 0 ? talhao.nome : '↳ Divisão'}
                                           </span>
@@ -537,7 +536,7 @@ export default function PlanejarVariedades() {
                                         {/* ÁREA */}
                                         <div 
                                           onClick={(e) => e.stopPropagation()} 
-                                          className={`bg-white border border-gray-200 rounded-lg md:rounded-xl flex items-center w-20 md:w-28 shrink-0 transition-all ${selectionMode ? 'opacity-60 bg-gray-50' : 'focus-within:border-gray-400 focus-within:ring-1 focus-within:ring-gray-100'}`}
+                                          className={`bg-white border border-gray-200 shadow-sm rounded-xl flex items-center w-20 md:w-28 shrink-0 transition-all ${selectionMode ? 'opacity-60 bg-gray-50' : 'focus-within:border-gray-400 focus-within:ring-1 focus-within:ring-gray-100'}`}
                                         >
                                           <input
                                             type="number"
@@ -545,22 +544,22 @@ export default function PlanejarVariedades() {
                                             value={row.areaHa}
                                             onChange={(e) => handleUpdateAreaRaw(uid, row.tempId, e.target.value)}
                                             onBlur={(e) => handleAreaBlur(uid, row.tempId, e.target.value)}
-                                            className={`w-full py-1.5 md:py-2.5 pl-2 text-center font-bold text-gray-700 text-xs md:text-base bg-transparent outline-none ${selectionMode ? 'cursor-not-allowed' : ''}`}
+                                            className={`w-full py-2.5 pl-1.5 md:pl-3 text-center font-semibold text-gray-700 text-[11px] md:text-sm bg-transparent outline-none ${selectionMode ? 'cursor-not-allowed' : ''}`}
                                             disabled={!!selectionMode}
                                           />
-                                          <span className="text-[9px] md:text-[11px] font-medium text-gray-400 pr-2">ha</span>
+                                          <span className="text-[10px] md:text-[11px] font-medium text-gray-400 pr-1.5 md:pr-3">ha</span>
                                         </div>
 
                                         {/* VARIEDADE (SEMENTE) */}
                                         <div 
                                           onClick={(e) => { e.stopPropagation(); if(selectionMode) handleToggleLote(uid); }}
-                                          className={`border rounded-lg md:rounded-xl flex-1 md:w-48 shrink-0 transition-all overflow-hidden ${selectionMode === 'variedades' ? `cursor-pointer ${modeColorHover}` : 'focus-within:border-blue-400 focus-within:ring-1 focus-within:ring-blue-100'} ${!row.variedadeId ? 'bg-blue-50/30 border-blue-100' : 'bg-white border-gray-200'} ${selectionMode === 'taxas' ? 'opacity-60' : ''}`}
+                                          className={`bg-white border shadow-sm rounded-xl flex-1 md:w-48 shrink-0 transition-all overflow-hidden ${selectionMode === 'variedades' ? `cursor-pointer ${modeColorHover}` : 'focus-within:border-blue-400 focus-within:ring-1 focus-within:ring-blue-100'} ${!row.variedadeId ? 'bg-blue-50/30 border-blue-100' : 'border-gray-200'} ${selectionMode === 'taxas' ? 'opacity-60' : ''}`}
                                           style={{ borderLeft: row.variedadeId ? `4px solid ${getVarColor(row.variedadeId)}` : undefined }}
                                         >
                                           <select
                                             value={row.variedadeId}
                                             onChange={(e) => handleUpdateSelect(uid, row.tempId, 'variedadeId', e.target.value)}
-                                            className={`w-full h-full py-1.5 md:py-2.5 px-1 outline-none font-semibold text-gray-700 text-[11px] md:text-sm bg-transparent ${selectionMode ? 'pointer-events-none' : 'cursor-pointer'}`}
+                                            className={`w-full h-full py-2.5 px-2 outline-none font-semibold text-gray-700 text-[11px] md:text-sm bg-transparent ${selectionMode ? 'pointer-events-none' : 'cursor-pointer'}`}
                                             tabIndex={selectionMode ? -1 : 0}
                                           >
                                             <option value="" disabled>Semente...</option>
@@ -568,11 +567,11 @@ export default function PlanejarVariedades() {
                                           </select>
                                         </div>
 
-                                        {/* LIXEIRA (Aparece na mesma linha apenas para index !== 0) */}
+                                        {/* LIXEIRA */}
                                         {index !== 0 && (
                                           <button
                                             onClick={(e) => { e.stopPropagation(); handleRemoveVarRow(uid, row.tempId); }}
-                                            className={`bg-white border border-gray-200 text-gray-400 hover:text-red-500 hover:bg-red-50 p-1.5 md:p-2.5 rounded-lg md:rounded-xl transition-all shrink-0 ${selectionMode ? 'opacity-0 pointer-events-none' : ''}`}
+                                            className={`bg-white border border-gray-200 shadow-sm text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 md:p-2.5 rounded-xl transition-all shrink-0 ${selectionMode ? 'opacity-0 pointer-events-none' : ''}`}
                                             title="Remover divisão"
                                           >
                                             <Trash size={14} className="md:w-[18px] md:h-[18px]" />
@@ -580,23 +579,22 @@ export default function PlanejarVariedades() {
                                         )}
                                       </div>
 
-                                      {/* ÁREA EXPANSÍVEL (TAXA E BAGS) - Fica oculta no mobile até clicar */}
-                                      <div className={`${expandedRows[row.tempId] ? 'flex' : 'hidden'} md:flex flex-row items-center gap-1.5 md:gap-2 w-full md:w-auto mt-1 md:mt-0 p-2 md:p-0 bg-gray-50/80 md:bg-transparent rounded-xl border border-gray-100 md:border-none animate-fade-in`}>
+                                      {/* ÁREA EXPANSÍVEL NO MOBILE */}
+                                      <div className={`${expandedRows[row.tempId] ? 'flex' : 'hidden'} md:flex flex-row items-center gap-1.5 md:gap-2 w-full md:w-auto animate-fade-in mt-1 md:mt-0`}>
                                         
-                                        {/* INDICADOR VISUAL NO MOBILE (Mostra que a taxa pertence ao card de cima) */}
-                                        <div className="w-4 shrink-0 flex justify-end md:hidden">
-                                           <div className="w-2 h-3 border-b-2 border-l-2 border-gray-300 rounded-bl-sm"></div>
+                                        <div className="w-5 shrink-0 flex justify-end md:hidden">
+                                           <div className="w-3 h-4 border-b-2 border-l-2 border-gray-300 rounded-bl-xl"></div>
                                         </div>
 
-                                        {/* TAXA (GABARITO) */}
+                                        {/* TAXA */}
                                         <div 
                                           onClick={(e) => { e.stopPropagation(); if(selectionMode) handleToggleLote(uid); }}
-                                          className={`border rounded-lg md:rounded-xl flex-1 md:w-40 shrink-0 transition-all ${selectionMode === 'taxas' ? `cursor-pointer ${modeColorHover}` : 'focus-within:border-orange-400 focus-within:ring-1 focus-within:ring-orange-100'} ${!row.taxaId ? 'bg-orange-50/30 border-orange-100' : 'bg-white border-gray-200'} ${selectionMode === 'variedades' ? 'opacity-60' : ''}`}
+                                          className={`bg-white border shadow-sm rounded-xl flex-1 md:w-36 shrink-0 transition-all ${selectionMode === 'taxas' ? `cursor-pointer ${modeColorHover}` : 'focus-within:border-orange-400 focus-within:ring-1 focus-within:ring-orange-100'} ${!row.taxaId ? 'bg-orange-50/30 border-orange-100' : 'border-gray-200'} ${selectionMode === 'variedades' ? 'opacity-60' : ''}`}
                                         >
                                           <select
                                             value={row.taxaId}
                                             onChange={(e) => handleUpdateSelect(uid, row.tempId, 'taxaId', e.target.value)}
-                                            className={`w-full h-full py-1.5 md:py-2.5 px-2 outline-none font-semibold text-gray-700 text-[11px] md:text-sm bg-transparent ${selectionMode ? 'pointer-events-none' : 'cursor-pointer'}`}
+                                            className={`w-full h-full py-2.5 px-2 outline-none font-semibold text-gray-700 text-[11px] md:text-sm bg-transparent ${selectionMode ? 'pointer-events-none' : 'cursor-pointer'}`}
                                             tabIndex={selectionMode ? -1 : 0}
                                           >
                                             <option value="" disabled>Taxa...</option>
@@ -605,7 +603,7 @@ export default function PlanejarVariedades() {
                                         </div>
 
                                         {/* BAGS */}
-                                        <div className={`border border-gray-200 bg-white md:bg-gray-50 rounded-lg md:rounded-xl px-2 py-1.5 md:py-2.5 w-auto md:w-36 shrink-0 flex items-center justify-center transition-all ${selectionMode ? 'opacity-60' : ''}`}>
+                                        <div className={`bg-white border border-gray-200 shadow-sm rounded-xl px-2 py-2.5 w-auto md:w-32 shrink-0 flex items-center justify-center transition-all ${selectionMode ? 'opacity-60' : ''}`}>
                                           {calcEmb.total > 0 ? (
                                             <span className="text-[11px] md:text-xs font-bold text-gray-700 truncate flex items-center gap-1.5">
                                               <Package size={12} className="text-emerald-500 hidden md:block" />
@@ -633,14 +631,14 @@ export default function PlanejarVariedades() {
 
                 {/* BOTÕES FLUTUANTES DE AÇÃO EM LOTE */}
                 {loteSelecionados.length > 0 && selectionMode === 'variedades' && (
-                  <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-40 animate-fade-in">
+                  <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50 animate-fade-in">
                     <button onClick={() => setIsModalVarOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm md:text-base py-3 px-8 rounded-full shadow-lg flex items-center gap-2 border border-blue-400 transition-transform hover:scale-105 whitespace-nowrap">
                       <Sprout size={18} /> Aplicar Sementes ( {loteSelecionados.length} )
                     </button>
                   </div>
                 )}
                 {loteSelecionados.length > 0 && selectionMode === 'taxas' && (
-                  <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-40 animate-fade-in">
+                  <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50 animate-fade-in">
                     <button onClick={() => setIsModalTaxaOpen(true)} className="bg-orange-600 hover:bg-orange-700 text-white font-semibold text-sm md:text-base py-3 px-8 rounded-full shadow-lg flex items-center gap-2 border border-orange-400 transition-transform hover:scale-105 whitespace-nowrap">
                       <Calculator size={18} /> Aplicar Taxas ( {loteSelecionados.length} )
                     </button>
@@ -649,41 +647,6 @@ export default function PlanejarVariedades() {
               </div>
             );
           })()
-        )}
-
-        {/* ========================================== */}
-        {/* MODAL LOTE: VARIEDADES (LISTA ÚNICA)       */}
-        {/* ========================================== */}
-        {isModalVarOpen && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in" onClick={() => setIsModalVarOpen(false)}>
-            <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2"><Sprout className="text-blue-500" size={20}/> Sementes</h3>
-                <button onClick={() => setIsModalVarOpen(false)} className="bg-gray-50 text-gray-400 p-2 rounded-full hover:bg-red-50 hover:text-red-500 transition-colors"><X size={18}/></button>
-              </div>
-              
-              <div className="flex flex-col gap-2 mb-6 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
-                <div onClick={() => setLoteVarId('nenhuma')} className={`flex items-center gap-4 p-3.5 rounded-2xl border transition-all cursor-pointer ${loteVarId === 'nenhuma' ? 'border-gray-400 bg-gray-50 shadow-sm' : 'border-gray-100 bg-white hover:border-gray-300'}`}>
-                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center shrink-0"><X size={16} className="text-gray-400" /></div>
-                  <span className={`font-semibold text-[14px] ${loteVarId === 'nenhuma' ? 'text-gray-800' : 'text-gray-500'}`}>Nenhuma <span className="font-medium text-xs text-gray-400 ml-1">(Limpar)</span></span>
-                </div>
-
-                {(variedades || []).filter(v => v.culturaId === selectedCulturaId).map(v => {
-                  const corVar = v.cor || '#3b82f6';
-                  const isSelected = loteVarId === v.id;
-                  return (
-                    <div key={v.id} onClick={() => setLoteVarId(v.id)} className={`flex items-center gap-4 p-3.5 rounded-2xl border transition-all cursor-pointer ${isSelected ? 'border-blue-400 bg-blue-50 shadow-sm ring-1 ring-blue-400' : 'border-gray-100 bg-white hover:border-gray-200'}`}>
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: `${corVar}15` }}>
-                        <Sprout size={16} style={{ color: corVar }} />
-                      </div>
-                      <span className={`font-semibold text-[14px] ${isSelected ? 'text-gray-900' : 'text-gray-700'}`}>{v.nome}</span>
-                    </div>
-                  );
-                })}
-              </div>
-              <button onClick={() => confirmarModalLote('variedades')} className="w-full py-3.5 bg-blue-600 text-white font-semibold text-base rounded-2xl hover:bg-blue-700 shadow-sm transition-colors">Confirmar</button>
-            </div>
-          </div>
         )}
 
         {/* ========================================== */}

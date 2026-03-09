@@ -1,13 +1,14 @@
 // src/components/Sidebar.jsx
 import React, { useState } from 'react';
-import { Home, Database, CalendarDays, Calculator, FileText, PackageCheck, Leaf, Menu, X, LogOut, Map, Sprout } from 'lucide-react';
+import { Home, Database, CalendarDays, Calculator, FileText, PackageCheck, Leaf, Menu, X, LogOut, Map, Sprout, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // Importações do Firebase para o Logout
 import { signOut } from 'firebase/auth';
 import { auth } from '../services/firebase';
 
 export default function Sidebar({ activeTab, setActiveTab }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false); // Controle do Mobile
+  const [isCollapsed, setIsCollapsed] = useState(false); // Controle do Desktop (Ocultar textos)
 
   // Aqui alteramos o menu para refletir a nova arquitetura
   const menuItems = [
@@ -38,14 +39,12 @@ export default function Sidebar({ activeTab, setActiveTab }) {
 
   return (
     <>
-      {/* Botão Hamburger (Aparece apenas no Mobile, Topo Esquerdo) */}
-      <button 
+      {/* Área clicável invisível no Topo Esquerdo (Substitui o botão Hamburger) */}
+      <div 
         onClick={() => setIsOpen(true)} 
-        className="lg:hidden fixed top-3 left-4 z-[60] bg-white p-2.5 rounded-xl shadow-sm border border-gray-100 text-gray-700 hover:text-emerald-600 transition-colors"
-      >
-        <Menu size={24} />
-      </button>
-
+        className="lg:hidden fixed top-0 left-0 w-20 h-16 z-[60] cursor-pointer"
+        title="Abrir Menu Lateral"
+      />
       {/* Fundo Escurecido (Overlay) quando o menu está aberto no Mobile */}
       {isOpen && (
         <div 
@@ -54,25 +53,41 @@ export default function Sidebar({ activeTab, setActiveTab }) {
         />
       )}
 
-      {/* Menu Lateral (Escondido no mobile, Fixo no Desktop) */}
-      <aside className={`fixed lg:static top-0 left-0 h-full w-72 lg:w-64 bg-white border-r border-gray-200 z-[70] transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'} lg:translate-x-0 shrink-0 flex flex-col`}>
+      {/* Menu Lateral (Escondido no mobile, Fixo/Retrátil no Desktop) */}
+      <aside 
+        className={`fixed lg:static top-0 left-0 h-full bg-white border-r border-gray-200 z-[70] transform transition-all duration-300 ease-in-out shrink-0 flex flex-col 
+          ${isOpen ? 'translate-x-0 shadow-2xl w-72' : '-translate-x-full w-72'} 
+          lg:translate-x-0 ${isCollapsed ? 'lg:w-20' : 'lg:w-64'}
+        `}
+      >
         
-        {/* Logo da Aplicação */}
-        <div className="h-20 flex items-center justify-between lg:justify-start px-6 border-b border-gray-100 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="bg-emerald-600 p-2 rounded-xl text-white flex items-center justify-center shadow-sm">
+        {/* Logo da Aplicação e Botão de Recolher */}
+        <div className={`h-20 flex items-center px-6 border-b border-gray-100 shrink-0 transition-all duration-300 ${isCollapsed ? 'justify-center lg:px-0' : 'justify-between lg:justify-start'}`}>
+          
+          <div className="flex items-center gap-3 overflow-hidden">
+            {/* Ícone da Folha (Agora é o botão de recolher/expandir no desktop) */}
+            <button 
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="bg-emerald-600 hover:bg-emerald-700 transition-colors p-2 rounded-xl text-white flex items-center justify-center shadow-sm shrink-0 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+              title={isCollapsed ? "Expandir Menu" : "Recolher Menu"}
+            >
               <Leaf size={24} />
-            </div>
-            <h1 className="text-xl font-black text-emerald-700 tracking-tight">AgroPlan</h1>
+            </button>
+
+            {/* O Texto do Logo some no desktop quando recolhido */}
+            <h1 className={`text-xl font-black text-emerald-700 tracking-tight whitespace-nowrap transition-opacity duration-300 ${isCollapsed ? 'lg:hidden' : 'block'}`}>
+              AgroPlan
+            </h1>
           </div>
+
           {/* Botão de Fechar apenas no Mobile */}
-          <button onClick={() => setIsOpen(false)} className="lg:hidden text-gray-400 hover:text-red-500 bg-gray-50 p-2 rounded-full transition-colors">
+          <button onClick={() => setIsOpen(false)} className="lg:hidden text-gray-400 hover:text-red-500 bg-gray-50 p-2 rounded-full transition-colors ml-auto">
             <X size={20} />
           </button>
         </div>
 
         {/* Navegação Principal */}
-        <nav className="flex-1 py-6 flex flex-col gap-2 px-4 overflow-y-auto hide-scrollbar">
+        <nav className="flex-1 py-6 flex flex-col gap-2 px-4 overflow-y-auto hide-scrollbar overflow-x-hidden">
           {menuItems.map(item => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -80,16 +95,27 @@ export default function Sidebar({ activeTab, setActiveTab }) {
               <button
                 key={item.id}
                 onClick={() => handleNavClick(item.id)}
-                className={`flex items-center gap-3 p-3.5 rounded-xl transition-all ${
+                title={isCollapsed ? item.label : ""} 
+                className={`w-full flex items-center p-3.5 rounded-xl transition-all relative group text-left ${
+                  isCollapsed ? 'justify-center' : 'gap-3 justify-start'
+                } ${
                   isActive 
                     ? 'bg-emerald-50 text-emerald-700 shadow-sm border border-emerald-100' 
                     : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800 border border-transparent'
                 }`}
               >
-                <Icon size={22} strokeWidth={isActive ? 2.5 : 2} className={isActive ? 'text-emerald-600' : ''} />
-                <span className={`font-medium ${isActive ? 'font-bold' : ''}`}>
+                <Icon size={22} strokeWidth={isActive ? 2.5 : 2} className={`shrink-0 ${isActive ? 'text-emerald-600' : ''}`} />
+                
+                {/* O Label com alinhamento forçado à esquerda */}
+                <span className={`font-medium flex-1 truncate transition-opacity duration-300 ${isActive ? 'font-bold' : ''} ${isCollapsed ? 'lg:hidden' : 'block'}`}>
                   {item.label}
                 </span>
+
+                {isCollapsed && (
+                  <div className="absolute left-14 bg-gray-800 text-white text-xs font-bold py-1.5 px-3 rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 shadow-lg">
+                    {item.label}
+                  </div>
+                )}
               </button>
             );
           })}
@@ -99,10 +125,11 @@ export default function Sidebar({ activeTab, setActiveTab }) {
         <div className="p-4 border-t border-gray-100 shrink-0">
           <button 
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 p-3.5 rounded-xl text-gray-500 hover:bg-red-50 hover:text-red-600 hover:border-red-100 border border-transparent transition-all font-medium"
+            title={isCollapsed ? "Sair do Sistema" : ""}
+            className={`w-full flex items-center p-3.5 rounded-xl text-gray-500 hover:bg-red-50 hover:text-red-600 hover:border-red-100 border border-transparent transition-all font-medium group ${isCollapsed ? 'justify-center' : 'gap-3 justify-start'}`}
           >
-            <LogOut size={22} />
-            <span>Sair do Sistema</span>
+            <LogOut size={22} className="shrink-0 group-hover:text-red-500 transition-colors" />
+            <span className={`whitespace-nowrap ${isCollapsed ? 'lg:hidden' : 'block'}`}>Sair</span>
           </button>
         </div>
       </aside>
