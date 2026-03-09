@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Fundo padrão */
+body {
+  @apply bg-gray-50 min-h-screen;
+}
+
+/* O root agora ocupa 100% da largura da tela sem limites de tamanho */
+#root {
+  @apply w-full bg-gray-50 min-h-screen relative;
+}

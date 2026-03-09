@@ -1,0 +1,759 @@
+// src/pages/Cadastros.jsx
+import React, { useState, useRef } from 'react';
+import { useAgro } from '../contexts/AgroContext';
+import { useModal } from '../contexts/ModalContext';
+// IMPORTANTE: Adicionada a função calcSeedsPerHa
+import { generateId, calcSeedsPerHa } from '../utils/helpers';
+import { Map, Leaf, Sprout, Calculator, UploadCloud, Plus, Database, Trash, Package, Square, CheckSquare, Edit2, Save, X } from 'lucide-react';
+import Header from '../components/Header';
+import Card from '../components/Card';
+import * as xlsx from 'xlsx';
+const PRESET_COLORS = [
+  '#16a34a', '#22c55e', '#84cc16', '#4ade80', // Verdes (Plantação)
+  '#0891b2', '#06b6d4', '#3b82f6', '#6366f1', // Azuis (Água/Céu)
+  '#f59e0b', '#fbbf24', '#ea580c', '#f97316', // Laranjas (Colheita)
+  '#71717a', '#4b5563', '#18181b', '#b91c1c'  // Neutros/Alerta
+];
+
+export default function Cadastros() {
+  const { 
+    talhoes, setTalhoes, 
+    culturas, setCulturas, 
+    variedades, setVariedades, 
+    taxasPlantio, setTaxasPlantio,
+    embalagens, setEmbalagens // NOVO
+  } = useAgro();
+  const { showAlert, showConfirm } = useModal(); // NOVO AQUI
+
+  const [activeSubTab, setActiveSubTab] = useState('talhoes');
+// ==========================================
+// ESTADOS E LÓGICAS: TALHÕES
+  // ==========================================
+  const fileInputRef = useRef(null); // NOVO: Referência para o input de Excel
+  
+  const [talhaoNome, setTalhaoNome] = useState('');
+  const [talhaoArea, setTalhaoArea] = useState('');
+  const [talhaoRetiro, setTalhaoRetiro] = useState('');
+
+  // NOVO: Controle de Edição e Exclusão de Talhões
+  const [editingTalhaoId, setEditingTalhaoId] = useState(null);
+  const [editTalhaoAreaVal, setEditTalhaoAreaVal] = useState('');
+
+  const handleDeleteTalhao = (id) => {
+    showConfirm("Excluir Talhão", "Atenção: Excluir este talhão pode afetar os Planos de Safra que já o utilizam. Tem certeza que deseja excluir?", () => {
+      setTalhoes(talhoes.filter(t => t.id !== id));
+    });
+  };
+
+  const startEditTalhao = (talhao) => {
+    setEditingTalhaoId(talhao.id);
+    setEditTalhaoAreaVal(talhao.areaHa);
+  };
+
+  const confirmEditTalhao = (id) => {
+    if (!editTalhaoAreaVal || isNaN(editTalhaoAreaVal)) {
+      return showAlert("Área Inválida", "Por favor, insira uma área válida.", "danger");
+    }
+    setTalhoes(talhoes.map(t => t.id === id ? { ...t, areaHa: parseFloat(editTalhaoAreaVal) } : t));
+    setEditingTalhaoId(null);
+    setEditTalhaoAreaVal('');
+  };
+
+  const cancelEditTalhao = () => {
+    setEditingTalhaoId(null);
+    setEditTalhaoAreaVal('');
+  };
+  
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target.result;
+        const workbook = xlsx.read(bstr, { type: 'binary' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const data = xlsx.utils.sheet_to_json(worksheet);
+
+        const novosTalhoes = data.map(row => ({
+          id: generateId(),
+          retiro: row['RETIRO'] ? String(row['RETIRO']) : '',
+          nome: row['TALHÃO'] ? String(row['TALHÃO']) : 'Sem Nome',
+          areaHa: parseFloat(row['ÁREA']) || 0
+        }));
+
+        setTalhoes(prev => [...prev, ...novosTalhoes]);
+        // ALERTA DE SUCESSO MODERNO AQUI:
+        showAlert("Importação Concluída", `${novosTalhoes.length} talhões importados com sucesso!`, "success");
+      } catch (error) {
+        // ALERTA DE ERRO MODERNO AQUI:
+        showAlert("Erro na Importação", "Erro ao importar a planilha. Verifique se as colunas estão exatas: RETIRO, TALHÃO e ÁREA.", "danger");
+      }
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleAddTalhao = (e) => {
+    e.preventDefault();
+    if (!talhaoNome.trim() || !talhaoArea) return;
+    setTalhoes([...talhoes, { id: generateId(), retiro: talhaoRetiro, nome: talhaoNome, areaHa: parseFloat(talhaoArea) }]);
+    setTalhaoRetiro(''); setTalhaoNome(''); setTalhaoArea('');
+  };
+
+  // ==========================================
+  // ESTADOS E LÓGICAS: CULTURAS
+  // ==========================================
+  const [culturaNome, setCulturaNome] = useState('');
+  const [culturaCor, setCulturaCor] = useState('#10b981'); // Cor padrão (Verde Esmeralda)
+  const [colorPickerCulturaId, setColorPickerCulturaId] = useState(null); // Controla o modal de cor
+
+  const handleAddCultura = (e) => {
+    e.preventDefault();
+    if (!culturaNome.trim()) return;
+    setCulturas([...culturas, { id: generateId(), nome: culturaNome, cor: culturaCor }]);
+    setCulturaNome('');
+    setCulturaCor('#10b981'); // Reseta a cor após cadastrar
+  };
+
+  const handleChangeCorCultura = (id, novaCor) => {
+    setCulturas(culturas.map(c => c.id === id ? { ...c, cor: novaCor } : c));
+  };
+
+  // ==========================================
+  // ESTADOS E LÓGICAS: VARIEDADES
+  // ==========================================
+  const [varCulturaId, setVarCulturaId] = useState('');
+  const [varNome, setVarNome] = useState('');
+  const [varCor, setVarCor] = useState('#3b82f6'); // Cor padrão (Azul)
+  const [colorPickerVarId, setColorPickerVarId] = useState(null);
+  // NOVO: Modo de Seleção e Embalagens para Variedades
+  const [isVarSelectionMode, setIsVarSelectionMode] = useState(false);
+  const [varsSelecionadas, setVarsSelecionadas] = useState([]);
+  const [isModalEmbVarOpen, setIsModalEmbVarOpen] = useState(false);
+  const [embSelecionadaId, setEmbSelecionadaId] = useState('');
+
+  const handleToggleVar = (id) => setVarsSelecionadas(prev => prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id]);
+  
+  // NOVO: Selecionar e Desmarcar Todas as Sementes
+  const handleSelectAllVars = () => {
+    if (varsSelecionadas.length === variedades.length && variedades.length > 0) {
+      setVarsSelecionadas([]); 
+    } else {
+      setVarsSelecionadas(variedades.map(v => v.id)); 
+    }
+  };
+
+  // ATUALIZADO: Permite a exclusão do vínculo escolhendo "nenhuma"
+  const confirmarEmbalagemVar = () => {
+    if (!embSelecionadaId) return showAlert("Atenção", "Selecione uma embalagem ou escolha 'Não definida'.", "danger");
+    setVariedades(variedades.map(v => varsSelecionadas.includes(v.id) ? { ...v, embalagemId: embSelecionadaId === 'nenhuma' ? '' : embSelecionadaId } : v));
+    setVarsSelecionadas([]); setEmbSelecionadaId(''); setIsModalEmbVarOpen(false); setIsVarSelectionMode(false);
+  };
+
+  // NOVO: Controle para esconder/mostrar formulários na aba Taxas
+  const [showEmbForm, setShowEmbForm] = useState(false);
+  const [showTaxaForm, setShowTaxaForm] = useState(false);
+
+  const handleAddVariedade = (e) => {
+    e.preventDefault();
+    if (!varCulturaId || !varNome.trim()) return;
+    setVariedades([...variedades, { id: generateId(), culturaId: varCulturaId, nome: varNome, cor: varCor }]);
+    setVarCulturaId(''); setVarNome(''); setVarCor('#3b82f6');
+  };
+
+  const handleChangeCorVariedade = (id, novaCor) => {
+    setVariedades(variedades.map(v => v.id === id ? { ...v, cor: novaCor } : v));
+  };
+
+  const handleDeleteVariedade = (id) => {
+    showConfirm(
+      "Excluir Variedade",
+      "Tem certeza que deseja excluir esta semente? Ao confirmar, ela perderá o vínculo com qualquer embalagem e plano de safra atual.",
+      () => setVariedades(variedades.filter(v => v.id !== id)),
+      "danger"
+    );
+  };
+
+  // NOVO: Controle de Edição de Variedades
+  const [editingVarId, setEditingVarId] = useState(null);
+  const [editVarNomeVal, setEditVarNomeVal] = useState('');
+
+  const startEditVariedade = (variedade) => {
+    setEditingVarId(variedade.id);
+    setEditVarNomeVal(variedade.nome);
+  };
+
+  const confirmEditVariedade = (id) => {
+    if (!editVarNomeVal.trim()) {
+      return showAlert("Atenção", "O nome da semente não pode ficar vazio.", "danger");
+    }
+    setVariedades(variedades.map(v => v.id === id ? { ...v, nome: editVarNomeVal } : v));
+    setEditingVarId(null);
+    setEditVarNomeVal('');
+  };
+
+  const cancelEditVariedade = () => {
+    setEditingVarId(null);
+    setEditVarNomeVal('');
+  };
+  const handleSelectColor = (id, novaCor) => {
+    setVariedades(variedades.map(v => v.id === id ? { ...v, cor: novaCor } : v));
+    // Se quiser que o modal feche logo após clicar na cor pré-definida:
+    setColorPickerTarget(null);
+  };
+  // ==========================================
+  // ESTADOS E LÓGICAS: EMBALAGENS (NOVO)
+  // ==========================================
+  const [embNome, setEmbNome] = useState('');
+  const [embTipo, setEmbTipo] = useState('saca');
+  const [embUnidade, setEmbUnidade] = useState('kg');
+  const [embCapacidade, setEmbCapacidade] = useState('');
+
+  const handleAddEmbalagem = (e) => {
+    e.preventDefault();
+    if (!embNome.trim() || !embCapacidade) return;
+    setEmbalagens([...embalagens, {
+      id: generateId(),
+      nome: embNome,
+      tipoEmbalagem: embTipo,
+      tipoUnidade: embUnidade,
+      capacidade: parseFloat(embCapacidade)
+    }]);
+    setEmbNome(''); setEmbCapacidade('');
+  };
+
+  const handleDeleteEmbalagem = (id) => {
+    showConfirm("Excluir Embalagem", "Tem certeza que deseja excluir esta embalagem?", () => {
+      setEmbalagens(embalagens.filter(e => e.id !== id));
+    });
+  };
+
+ // ==========================================
+  // ESTADOS E LÓGICAS: GABARITOS DE TAXAS
+  // ==========================================
+  const [taxaNome, setTaxaNome] = useState('');
+  const [taxaTipo, setTaxaTipo] = useState('kg');
+  const [taxaKgPorHa, setTaxaKgPorHa] = useState('');
+  const [taxaSementesPorHa, setTaxaSementesPorHa] = useState('');
+  const [taxaEspacamento, setTaxaEspacamento] = useState('');
+  const [taxaSementesPorMetro, setTaxaSementesPorMetro] = useState('');
+
+  const handleAddTaxa = (e) => {
+    e.preventDefault();
+    if (!taxaNome.trim()) return;
+
+    setTaxasPlantio([...taxasPlantio, {
+      id: generateId(),
+      nome: taxaNome,
+      tipo: taxaTipo,
+      kgPorHa: taxaTipo === 'kg' ? parseFloat(taxaKgPorHa) : null,
+      sementesPorHa: taxaTipo === 'sementes_ha' ? parseFloat(taxaSementesPorHa) : null,
+      espacamento: taxaTipo === 'sementes_metro' ? parseFloat(taxaEspacamento) : null,
+      sementesPorMetro: taxaTipo === 'sementes_metro' ? parseFloat(taxaSementesPorMetro) : null
+    }]);
+
+    setTaxaNome(''); 
+    setTaxaKgPorHa(''); 
+    setTaxaSementesPorHa(''); 
+    setTaxaEspacamento(''); 
+    setTaxaSementesPorMetro('');
+    setShowTaxaForm(false); // Fecha o form ao salvar
+  };
+
+  const handleDeleteTaxa = (id) => {
+    showConfirm("Excluir Gabarito", "Tem certeza que deseja excluir este gabarito de taxa?", () => {
+      setTaxasPlantio(taxasPlantio.filter(t => t.id !== id));
+    });
+  };
+
+  // ==========================================
+  // COMPONENTES DE RENDERIZAÇÃO DAS ABAS
+  // ==========================================
+  const renderTabButtons = () => (
+    <div className="flex overflow-x-auto gap-2 mb-6 pb-2 hide-scrollbar border-b border-gray-200">
+      {[
+        { id: 'talhoes', label: 'Talhões', icon: Map },
+        { id: 'culturas', label: 'Culturas', icon: Leaf },
+        { id: 'variedades', label: 'Variedades', icon: Sprout },
+        { id: 'taxas', label: 'Taxas (Gabaritos)', icon: Calculator } // Nome atualizado
+      ].map(tab => {
+        const Icon = tab.icon;
+        const isActive = activeSubTab === tab.id;
+        return (
+          <button
+            key={tab.id}
+            onClick={() => setActiveSubTab(tab.id)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-t-xl font-medium text-sm transition-all whitespace-nowrap ${
+              isActive ? 'bg-green-600 text-white shadow-md' : 'bg-white text-gray-500 hover:bg-gray-100'
+            }`}
+          >
+            <Icon size={16} /> {tab.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col h-full bg-gray-50 min-h-screen">
+      <Header title="Gestão de Cadastros Base" />
+      
+      <main className="px-6 py-4">
+        {renderTabButtons()}
+
+        {/* --- ABA: TALHÕES --- */}
+        {activeSubTab === 'talhoes' && (
+          <div className="animate-fade-in">
+            <input type="file" accept=".xlsx, .xls" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
+            <button onClick={() => fileInputRef.current.click()} className="w-full mb-6 bg-white border-2 border-dashed border-green-300 hover:border-green-500 hover:bg-green-50 text-green-700 font-medium py-4 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm">
+              <UploadCloud size={24} /> Importar Planilha (RETIRO, TALHÃO, ÁREA)
+            </button>
+
+            <Card className="mb-6">
+              <h2 className="text-md font-semibold text-gray-700 mb-4">Adicionar Manualmente</h2>
+              <form onSubmit={handleAddTalhao} className="flex flex-col gap-3">
+                <div className="flex gap-3">
+                  <input type="text" value={talhaoRetiro} onChange={(e) => setTalhaoRetiro(e.target.value)} placeholder="Retiro (Ex: Sede)" className="flex-1 bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-green-500 focus:outline-none" />
+                  <input type="text" value={talhaoNome} onChange={(e) => setTalhaoNome(e.target.value)} placeholder="Nome/Talhão *" className="flex-[2] bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-green-500 focus:outline-none" />
+                  <input type="number" step="0.01" value={talhaoArea} onChange={(e) => setTalhaoArea(e.target.value)} placeholder="Área (ha) *" className="flex-1 bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-green-500 focus:outline-none" />
+                </div>
+                <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2"><Plus size={18} /> Salvar Talhão</button>
+              </form>
+            </Card>
+
+            <div className="space-y-3">
+              {talhoes.map(talhao => (
+              <div key={talhao.id} className="flex justify-between items-center p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:border-emerald-200 transition-all mb-3 group">
+                
+                {/* INFORMAÇÕES DO TALHÃO OU MODO DE EDIÇÃO */}
+                <div className="flex items-center gap-4">
+                  <div className="bg-emerald-50 p-2 rounded-lg text-emerald-600">
+                    <Map size={20} />
+                  </div>
+                  <div>
+                    <span className="font-bold text-gray-800 text-lg block leading-none mb-1">{talhao.nome}</span>
+                    
+                    {/* Se estiver editando, mostra o Input. Se não, mostra o texto. */}
+                    {editingTalhaoId === talhao.id ? (
+                      <div className="flex items-center gap-2 mt-2">
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editTalhaoAreaVal}
+                          onChange={(e) => setEditTalhaoAreaVal(e.target.value)}
+                          className="w-24 p-1.5 border-2 border-emerald-400 bg-emerald-50 rounded-lg text-sm font-black text-emerald-800 outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                          autoFocus
+                        />
+                        <span className="text-xs text-gray-500 font-bold uppercase">Hectares (ha)</span>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-gray-500 font-bold tracking-wide">
+                        {talhao.areaHa.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ha 
+                        <span className="mx-2 text-gray-300">•</span> 
+                        {talhao.retiro || 'Sem Retiro'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* BOTÕES DE AÇÃO */}
+                <div className="flex items-center gap-2">
+                  {editingTalhaoId === talhao.id ? (
+                    <>
+                      <button onClick={() => confirmEditTalhao(talhao.id)} className="p-2 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-colors flex items-center gap-1 font-bold text-xs" title="Salvar">
+                        <Save size={16} /> Salvar
+                      </button>
+                      <button onClick={cancelEditTalhao} className="p-2 text-gray-500 bg-gray-100 hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors" title="Cancelar">
+                        <X size={16} />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {/* Estes botões só aparecem ao passar o rato (hover) ou no mobile */}
+                      <button onClick={() => startEditTalhao(talhao)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all opacity-100 lg:opacity-0 lg:group-hover:opacity-100" title="Editar Área">
+                        <Edit2 size={18} />
+                      </button>
+                      <button onClick={() => handleDeleteTalhao(talhao.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-100 lg:opacity-0 lg:group-hover:opacity-100" title="Excluir Talhão">
+                        <Trash size={18} />
+                      </button>
+                    </>
+                  )}
+                </div>
+
+              </div>
+            ))}
+            </div>
+          </div>
+        )}
+
+        {/* --- ABA: CULTURAS --- */}
+        {activeSubTab === 'culturas' && (
+          <div className="animate-fade-in">
+            <Card className="mb-6">
+              <h2 className="text-sm font-bold text-gray-600 mb-3 uppercase tracking-widest">Nova Cultura</h2>
+              <form onSubmit={handleAddCultura} className="flex flex-col md:flex-row gap-3">
+                <div className="flex flex-1 gap-2 items-center bg-gray-50 border border-gray-200 rounded-xl p-2">
+                  <input 
+                    type="color" 
+                    value={culturaCor} 
+                    onChange={(e) => setCulturaCor(e.target.value)}
+                    className="w-10 h-10 rounded-lg cursor-pointer border-0 bg-transparent shrink-0"
+                    title="Escolha a cor da cultura"
+                  />
+                  <input 
+                    type="text" 
+                    value={culturaNome} 
+                    onChange={(e) => setCulturaNome(e.target.value)} 
+                    placeholder="Nome da Cultura (Ex: Soja)" 
+                    className="flex-1 bg-transparent text-sm font-bold focus:outline-none text-gray-800 h-full w-full" 
+                  />
+                </div>
+                <button type="submit" className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 md:w-auto w-full">
+                  <Plus size={20} /> Cadastrar
+                </button>
+              </form>
+            </Card>
+
+           <div className="space-y-3 mb-16">
+              {culturas.map(c => (
+                <div key={c.id} className="relative">
+                  <Card className="!mb-0 flex items-center justify-between py-3 px-4 group hover:border-gray-200 transition-colors shadow-sm">
+                    {/* VOLTOU O ÍCONE E A FONTE NORMAL (SEM MAIÚSCULAS) */}
+                    <div className="flex items-center gap-3">
+                      <Leaf size={20} style={{ color: c.cor || '#10b981' }} />
+                      <span className="font-semibold text-gray-800">{c.nome}</span>
+                    </div>
+
+                    <button 
+                      onClick={() => setColorPickerCulturaId(colorPickerCulturaId === c.id ? null : c.id)}
+                      className="w-6 h-6 rounded-full border border-gray-200 shadow-sm transition-transform hover:scale-110"
+                      style={{ backgroundColor: c.cor || '#10b981' }}
+                      title="Mudar cor"
+                    />
+                  </Card>
+
+                  {/* MINI COLOR PICKER FLUTUANTE */}
+                  {colorPickerCulturaId === c.id && (
+                    <div className="absolute right-0 top-14 bg-white border border-gray-200 shadow-xl rounded-2xl p-4 z-50 flex flex-col gap-3 animate-fade-in w-64">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Selecione uma cor</span>
+                        <X size={16} className="text-gray-400 cursor-pointer hover:text-red-500" onClick={() => setColorPickerCulturaId(null)} />
+                      </div>
+                      <div className="grid grid-cols-4 gap-2">
+                        {PRESET_COLORS.map(cor => (
+                          <div 
+                            key={cor} 
+                            onClick={() => { handleChangeCorCultura(c.id, cor); setColorPickerCulturaId(null); }}
+                            className={`w-10 h-10 rounded-xl cursor-pointer hover:scale-110 transition-transform ${c.cor === cor ? 'ring-2 ring-gray-400 ring-offset-1' : ''}`}
+                            style={{ backgroundColor: cor }}
+                          />
+                        ))}
+                      </div>
+                      <div className="pt-3 border-t border-gray-100 flex items-center gap-2">
+                        <span className="text-xs font-semibold text-gray-500">Personalizada:</span>
+                        <input type="color" value={c.cor || '#10b981'} onChange={(e) => handleChangeCorCultura(c.id, e.target.value)} className="w-full h-8 cursor-pointer rounded bg-transparent border-0" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+       {/* --- ABA: VARIEDADES (COM EMBALAGENS) --- */}
+        {activeSubTab === 'variedades' && (
+          <div className="animate-fade-in">
+            
+           {/* MODAL DE EMBALAGENS */}
+            {isModalEmbVarOpen && (
+              <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4 animate-fade-in">
+                <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl border-t-8 border-blue-600">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="font-black text-gray-800 text-xl">Definir Embalagem</h3>
+                    <button onClick={() => setIsModalEmbVarOpen(false)} className="bg-gray-100 text-gray-500 p-2 rounded-full hover:bg-red-50 hover:text-red-500"><X size={20}/></button>
+                  </div>
+                  <p className="text-sm text-gray-500 mb-6 font-medium">Aplicar embalagem para <strong className="text-blue-600">{varsSelecionadas.length} variedades</strong>.</p>
+                  <select value={embSelecionadaId} onChange={(e) => setEmbSelecionadaId(e.target.value)} className="w-full border-2 border-gray-200 rounded-2xl p-4 bg-gray-50 text-gray-800 font-bold mb-8 outline-none focus:border-blue-500 focus:bg-white">
+                    <option value="" disabled>Escolha a embalagem...</option>
+                    <option value="nenhuma" className="text-red-500 font-bold">🚫 Não definida (Remover Embalagem)</option>
+                    {embalagens.map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
+                  </select>
+                  <button onClick={confirmarEmbalagemVar} className="w-full py-4 bg-blue-600 text-white font-black text-lg rounded-2xl hover:bg-blue-700 shadow-md">Salvar Vínculo</button>
+                </div>
+              </div>
+            )}
+
+            {/* CABEÇALHO COM MODO DE SELEÇÃO */}
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-black text-gray-800 flex items-center gap-2"><Sprout className="text-green-600"/> Sementes</h2>
+              {!isVarSelectionMode ? (
+                <button onClick={() => setIsVarSelectionMode(true)} className="text-sm font-bold text-blue-700 bg-blue-50 px-4 py-2 rounded-xl border border-blue-200 shadow-sm hover:bg-blue-100 transition-colors flex items-center gap-2">
+                  <Package size={16} /> Embalagens
+                </button>
+              ) : (
+                <div className="flex items-center gap-2 animate-fade-in">
+                  <button onClick={handleSelectAllVars} className="text-sm font-bold text-blue-700 bg-blue-50 px-4 py-2 rounded-xl border border-blue-200 shadow-sm hover:bg-blue-100 transition-colors hidden md:block">
+                    {varsSelecionadas.length === variedades.length && variedades.length > 0 ? 'Desmarcar Todos' : 'Selecionar Todos'}
+                  </button>
+                  <button onClick={() => setIsModalEmbVarOpen(true)} className="text-sm font-bold text-blue-700 bg-blue-100 px-4 py-2 rounded-xl border border-blue-300 shadow-sm hover:bg-blue-200 transition-colors flex items-center gap-2">
+                    <Package size={16} /> Definir ({varsSelecionadas.length})
+                  </button>
+                  <button onClick={() => { setIsVarSelectionMode(false); setVarsSelecionadas([]); }} className="text-gray-500 hover:text-red-500 bg-white border border-gray-200 p-2 rounded-xl shadow-sm transition-colors" title="Cancelar"><X size={16} /></button>
+                </div>
+              )}
+            </div>
+
+            <Card className="mb-6">
+              <form onSubmit={handleAddVariedade} className="flex flex-col md:flex-row gap-3">
+                 <div className="flex flex-1 gap-2 items-center bg-gray-50 border border-gray-200 rounded-xl p-2">
+                   <input 
+                     type="color" 
+                     value={varCor} 
+                     onChange={(e) => setVarCor(e.target.value)}
+                     className="w-10 h-10 rounded-lg cursor-pointer border-0 bg-transparent shrink-0"
+                     title="Escolha a cor da semente"
+                   />
+                   <select value={varCulturaId} onChange={(e) => setVarCulturaId(e.target.value)} className="flex-1 bg-transparent text-sm font-bold focus:outline-none text-gray-800 h-full w-full">
+                     <option value="" disabled>Cultura...</option>
+                     {culturas.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                   </select>
+                 </div>
+                 <input type="text" value={varNome} onChange={(e) => setVarNome(e.target.value)} placeholder="Variedade (Ex: M8210 IPRO)" className="flex-[2] bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-green-500 focus:outline-none" />
+                 <button type="submit" className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 md:w-auto w-full"><Plus size={20} /> Cadastrar</button>
+               </form>
+            </Card>
+
+            {/* LISTA DE VARIEDADES */}
+            <div className="space-y-6">
+              {culturas.map(cultura => {
+                const variedadesDaCultura = variedades.filter(v => v.culturaId === cultura.id);
+                if (variedadesDaCultura.length === 0) return null;
+                return (
+                  <div key={cultura.id} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                    <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2 border-b border-gray-100 pb-2">
+                      <Leaf size={18} className="text-green-600" /> {cultura.nome}
+                    </h3>
+                    <div className="space-y-2 pl-2 border-l-2 border-green-100 ml-2">
+                      {variedadesDaCultura.map(v => {
+                        const isSelected = varsSelecionadas.includes(v.id);
+                        const embalagemDaVar = embalagens.find(e => e.id === v.embalagemId);
+                        
+                        return (
+                          <div key={v.id} onClick={() => isVarSelectionMode && handleToggleVar(v.id)} className={`relative flex items-center justify-between py-2 px-3 rounded-lg transition-colors group border ${isVarSelectionMode ? 'cursor-pointer hover:bg-gray-50' : ''} ${isSelected ? 'bg-blue-50/50 border-blue-200' : 'border-transparent hover:border-gray-100'}`}>
+                            
+                            {/* LADO ESQUERDO: Ícone da Plantinha e Nome da Variedade */}
+                            <div className="flex items-center gap-3">
+                              <Sprout className="text-green-500 shrink-0" size={16} />
+
+                              {editingVarId === v.id ? (
+                                <div className="flex items-center gap-2 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+                                  <input
+                                    type="text"
+                                    value={editVarNomeVal}
+                                    onChange={(e) => setEditVarNomeVal(e.target.value)}
+                                    className="w-48 p-1 border-2 border-green-400 bg-green-50 rounded-lg text-sm font-bold text-green-900 outline-none"
+                                    autoFocus
+                                  />
+                                </div>
+                              ) : (
+                                <span className="font-medium text-gray-700">{v.nome}</span>
+                              )}
+                            </div>
+
+                            {/* LADO DIREITO: Bolinha de Cor, Embalagem e Botões */}
+                            <div className="flex items-center gap-4">
+                              
+                              {/* BOLINHA DE COR MOVIDA PARA CÁ */}
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); setColorPickerVarId(colorPickerVarId === v.id ? null : v.id); }}
+                                className="w-5 h-5 rounded-full border border-gray-200 shadow-sm transition-transform hover:scale-110 shrink-0"
+                                style={{ backgroundColor: v.cor || '#3b82f6' }}
+                                title="Mudar cor da semente"
+                              />
+
+                              {embalagemDaVar ? (
+                                <div className="hidden md:flex items-center gap-2">
+                                  <Package className="text-green-500" size={16} />
+                                  <span className="font-medium text-gray-700 text-sm">{embalagemDaVar.nome}</span>
+                                </div>
+                              ) : (
+                                <span className="text-[10px] italic text-gray-400 hidden md:block">Sem embalagem</span>
+                              )}
+
+                              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                {editingVarId === v.id ? (
+                                  <>
+                                    <button onClick={() => confirmEditVariedade(v.id)} className="text-green-600 hover:bg-green-50 p-1 rounded transition-all"><Save size={16} /></button>
+                                    <button onClick={cancelEditVariedade} className="text-gray-400 hover:bg-red-50 p-1 rounded transition-all"><X size={16} /></button>
+                                  </>
+                                ) : (
+                                  <>
+                                    {!isVarSelectionMode && (
+                                      <button onClick={() => startEditVariedade(v)} className="text-gray-300 hover:text-blue-600 p-1 rounded transition-all opacity-100 lg:opacity-0 lg:group-hover:opacity-100"><Edit2 size={16} /></button>
+                                    )}
+                                    <button onClick={() => handleDeleteVariedade(v.id)} className="text-gray-300 hover:text-red-500 p-1 rounded transition-all opacity-100 lg:opacity-0 lg:group-hover:opacity-100"><Trash size={16} /></button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* MINI COLOR PICKER FLUTUANTE (Ajustado para abrir à direita) */}
+                            {colorPickerVarId === v.id && (
+                              <div className="absolute right-20 top-10 bg-white border border-gray-200 shadow-xl rounded-2xl p-4 z-50 flex flex-col gap-3 animate-fade-in w-64" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex justify-between items-center mb-1">
+                                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Cor da Semente</span>
+                                  <X size={16} className="text-gray-400 cursor-pointer hover:text-red-500" onClick={() => setColorPickerVarId(null)} />
+                                </div>
+                                <div className="grid grid-cols-4 gap-2">
+                                  {PRESET_COLORS.map(cor => (
+                                    <div key={cor} onClick={() => { handleChangeCorVariedade(v.id, cor); setColorPickerVarId(null); }} className={`w-10 h-10 rounded-xl cursor-pointer hover:scale-110 transition-transform ${v.cor === cor ? 'ring-2 ring-gray-400 ring-offset-1' : ''}`} style={{ backgroundColor: cor }} />
+                                  ))}
+                                </div>
+                                <div className="pt-3 border-t border-gray-100 flex items-center gap-2">
+                                  <input type="color" value={v.cor || '#3b82f6'} onChange={(e) => handleChangeCorVariedade(v.id, e.target.value)} className="w-full h-8 cursor-pointer rounded bg-transparent border-0" />
+                                </div>
+                              </div>
+                            )}
+
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+       {/* --- ABA: TAXAS DE PLANTIO E EMBALAGENS --- */}
+        {activeSubTab === 'taxas' && (
+          <div className="animate-fade-in">
+            
+            {/* SESSÃO DE EMBALAGENS */}
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-black text-gray-800 flex items-center gap-2">
+                <Package size={20} className="text-blue-600" /> Presets de Embalagens
+              </h2>
+              <button onClick={() => setShowEmbForm(!showEmbForm)} className="text-sm font-bold text-blue-700 bg-blue-50 px-4 py-2 rounded-xl border border-blue-200 shadow-sm hover:bg-blue-100 transition-colors flex items-center gap-2">
+                {showEmbForm ? <X size={16} /> : <Plus size={16} />} {showEmbForm ? 'Cancelar' : 'Cadastrar Embalagem'}
+              </button>
+            </div>
+
+            {/* FORMULÁRIO DE EMBALAGEM */}
+            {showEmbForm && (
+              <Card className="mb-6 border-l-4 border-l-blue-500 animate-fade-in">
+                <form onSubmit={(e) => { handleAddEmbalagem(e); setShowEmbForm(false); }} className="space-y-4">
+                  <div className="flex gap-3">
+                    <input type="text" value={embNome} onChange={(e) => setEmbNome(e.target.value)} placeholder="Nome (Ex: Saca de Soja 40kg)" className="flex-[2] bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm font-bold text-gray-800" />
+                    <select value={embTipo} onChange={(e) => setEmbTipo(e.target.value)} className="flex-1 bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm font-bold text-blue-700">
+                      <option value="saca">Saca</option>
+                      <option value="bag">Bag</option>
+                    </select>
+                  </div>
+                  <div className="flex gap-3">
+                    <select value={embUnidade} onChange={(e) => setEmbUnidade(e.target.value)} className="flex-1 bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm font-bold text-gray-700">
+                      <option value="kg">Peso (Kg)</option>
+                      <option value="sementes">Quantidade (Sementes)</option>
+                    </select>
+                    <input type="number" step="0.01" value={embCapacidade} onChange={(e) => setEmbCapacidade(e.target.value)} placeholder="Capacidade" className="flex-[2] bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" />
+                  </div>
+                  <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2"><Plus size={18} /> Salvar Embalagem</button>
+                </form>
+              </Card>
+            )}
+
+            {/* LISTA DE EMBALAGENS */}
+            <div className="mb-8 space-y-2">
+              {embalagens.map(emb => (
+                <div key={emb.id} className="flex justify-between items-center p-3 bg-white rounded-xl border border-gray-100 shadow-sm">
+                  <div>
+                    <span className="font-bold text-gray-800 block">{emb.nome}</span>
+                    <span className="text-xs text-gray-500 uppercase font-bold">{emb.tipoEmbalagem} • {emb.capacidade} {emb.tipoUnidade}</span>
+                  </div>
+                  <button onClick={() => handleDeleteEmbalagem(emb.id)} className="text-gray-400 hover:text-red-500"><Trash size={16} /></button>
+                </div>
+              ))}
+            </div>
+
+          {/* SESSÃO DE TAXAS */}
+            <div className="flex justify-between items-center mb-4 border-t border-gray-200 pt-8">
+              <h2 className="text-lg font-black text-gray-800 flex items-center gap-2">
+                <Calculator size={20} className="text-orange-500" /> Presets de Taxas
+              </h2>
+              <button onClick={() => setShowTaxaForm(!showTaxaForm)} className="text-sm font-bold text-orange-700 bg-orange-50 px-4 py-2 rounded-xl border border-orange-200 shadow-sm hover:bg-orange-100 transition-colors flex items-center gap-2">
+                {showTaxaForm ? <X size={16} /> : <Plus size={16} />} {showTaxaForm ? 'Cancelar' : 'Cadastrar Taxa'}
+              </button>
+            </div>
+
+            {/* FORMULÁRIO DE TAXAS COM OS CAMPOS DINÂMICOS */}
+            {showTaxaForm && (
+              <Card className="mb-6 border-l-4 border-l-orange-500 animate-fade-in">
+                <form onSubmit={(e) => { handleAddTaxa(e); setShowTaxaForm(false); }} className="space-y-4">
+                  <div className="flex gap-3">
+                    <input type="text" value={taxaNome} onChange={(e) => setTaxaNome(e.target.value)} placeholder="Nome do Preset (Ex: Milho Verão Densidade Alta)" className="flex-[2] bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm font-bold text-gray-800" />
+                    <select value={taxaTipo} onChange={(e) => setTaxaTipo(e.target.value)} className="flex-1 bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm font-bold text-gray-700">
+                      <option value="kg">Kg/ha</option>
+                      <option value="sementes_ha">Sementes/ha</option>
+                      <option value="sementes_metro">Sementes/m linear</option>
+                    </select>
+                  </div>
+                  
+                  {/* CAMPOS CONDICIONAIS QUE FALTAVAM */}
+                  <div className="flex gap-3 animate-fade-in">
+                    {taxaTipo === 'kg' && (
+                      <input type="number" step="0.01" value={taxaKgPorHa} onChange={(e) => setTaxaKgPorHa(e.target.value)} placeholder="Quantidade de Kg por Hectare" className="w-full bg-white border border-orange-200 rounded-xl p-3 text-sm focus:ring-1 focus:ring-orange-400 outline-none" required />
+                    )}
+                    
+                    {taxaTipo === 'sementes_ha' && (
+                      <input type="number" step="0.01" value={taxaSementesPorHa} onChange={(e) => setTaxaSementesPorHa(e.target.value)} placeholder="Quantidade de Sementes por Hectare (Ex: 60000)" className="w-full bg-white border border-orange-200 rounded-xl p-3 text-sm focus:ring-1 focus:ring-orange-400 outline-none" required />
+                    )}
+                    
+                    {taxaTipo === 'sementes_metro' && (
+                      <>
+                        <input type="number" step="0.01" value={taxaEspacamento} onChange={(e) => setTaxaEspacamento(e.target.value)} placeholder="Espaçamento entre linhas em metros (Ex: 0.45)" className="flex-1 bg-white border border-orange-200 rounded-xl p-3 text-sm focus:ring-1 focus:ring-orange-400 outline-none" required />
+                        <input type="number" step="0.01" value={taxaSementesPorMetro} onChange={(e) => setTaxaSementesPorMetro(e.target.value)} placeholder="Qtd. Sementes por metro linear (Ex: 12)" className="flex-1 bg-white border border-orange-200 rounded-xl p-3 text-sm focus:ring-1 focus:ring-orange-400 outline-none" required />
+                      </>
+                    )}
+                  </div>
+
+                  <button type="submit" className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-colors">
+                    Salvar Gabarito de Taxa
+                  </button>
+                </form>
+              </Card>
+            )}
+
+            {/* LISTA DE TAXAS (MOSTRANDO OS DETALHES) */}
+            <div className="space-y-3 mb-16">
+              {taxasPlantio.map(taxa => {
+                let detalhe = '';
+                if (taxa.tipo === 'kg') detalhe = `${taxa.kgPorHa} Kg/ha`;
+                if (taxa.tipo === 'sementes_ha') detalhe = `${taxa.sementesPorHa?.toLocaleString('pt-BR')} sementes/ha`;
+                if (taxa.tipo === 'sementes_metro') detalhe = `${taxa.sementesPorMetro} sementes/m (Espaç. ${taxa.espacamento}m)`;
+
+                return (
+                  <div key={taxa.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center group hover:border-orange-200 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-orange-50 p-2 rounded-lg"><Calculator size={18} className="text-orange-500" /></div>
+                      <div>
+                        <h4 className="font-bold text-gray-800 text-[15px]">{taxa.nome}</h4>
+                        <p className="text-xs text-orange-600 font-semibold mt-0.5 bg-orange-50 inline-block px-2 py-0.5 rounded uppercase tracking-wider">{detalhe}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => handleDeleteTaxa(taxa.id)} className="text-gray-300 hover:text-red-500 p-2 bg-gray-50 hover:bg-red-50 rounded-lg transition-colors"><Trash size={18} /></button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
