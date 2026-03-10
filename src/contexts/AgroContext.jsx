@@ -14,6 +14,11 @@ export const AgroProvider = ({ children }) => {
   const [embalagens, setEmbalagensState] = useState([]);
   const [planosSafra, setPlanosSafraState] = useState([]);
 
+  // NOVOS ESTADOS: Aba Planejar Insumos
+  const [insumosPlan, setInsumosPlanState] = useState([]);
+  const [lockedAreas, setLockedAreasState] = useState({});
+  const [importedSeeds, setImportedSeedsState] = useState({});
+
   // Estado para travar a tela até o Firebase terminar de baixar os dados
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
@@ -34,6 +39,11 @@ export const AgroProvider = ({ children }) => {
         if (data.taxasPlantio) setTaxasPlantioState(data.taxasPlantio);
         if (data.embalagens) setEmbalagensState(data.embalagens);
         if (data.planosSafra) setPlanosSafraState(data.planosSafra);
+        
+        // Carregando os novos dados de Insumos
+        if (data.insumosPlan) setInsumosPlanState(data.insumosPlan);
+        if (data.lockedAreas) setLockedAreasState(data.lockedAreas);
+        if (data.importedSeeds) setImportedSeedsState(data.importedSeeds);
       }
       // Libera o aplicativo para renderizar
       setIsDataLoaded(true);
@@ -98,6 +108,31 @@ export const AgroProvider = ({ children }) => {
     });
   };
 
+  // NOVOS SETTERS DE INSUMOS
+  const setInsumosPlan = (newVal) => {
+    setInsumosPlanState(prev => {
+      const val = typeof newVal === 'function' ? newVal(prev) : newVal;
+      setDoc(docRef, { insumosPlan: val }, { merge: true });
+      return val;
+    });
+  };
+
+  const setLockedAreas = (newVal) => {
+    setLockedAreasState(prev => {
+      const val = typeof newVal === 'function' ? newVal(prev) : newVal;
+      setDoc(docRef, { lockedAreas: val }, { merge: true });
+      return val;
+    });
+  };
+
+  const setImportedSeeds = (newVal) => {
+    setImportedSeedsState(prev => {
+      const val = typeof newVal === 'function' ? newVal(prev) : newVal;
+      setDoc(docRef, { importedSeeds: val }, { merge: true });
+      return val;
+    });
+  };
+
   return (
     <AgroContext.Provider value={{
       talhoes, setTalhoes,
@@ -105,7 +140,12 @@ export const AgroProvider = ({ children }) => {
       variedades, setVariedades,
       taxasPlantio, setTaxasPlantio,
       embalagens, setEmbalagens,
-      planosSafra, setPlanosSafra
+      planosSafra, setPlanosSafra,
+      
+      // Injetando os novos valores no sistema
+      insumosPlan, setInsumosPlan,
+      lockedAreas, setLockedAreas,
+      importedSeeds, setImportedSeeds
     }}>
       {/* Só exibe o sistema quando os dados chegarem da nuvem */}
       {isDataLoaded ? children : (
