@@ -24,7 +24,7 @@ export default function Cotacoes() {
   // ESTADOS DO MODAL DE ITEM
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState(null);
-  const [itemCategoria, setItemCategoria] = useState(''); // NOVO CAMPO DE CATEGORIA
+  const [itemCategoria, setItemCategoria] = useState(''); 
   const [itemNome, setItemNome] = useState('');
   const [itemQtd, setItemQtd] = useState('');
   const [itemUnidade, setItemUnidade] = useState('UN');
@@ -291,8 +291,11 @@ export default function Cotacoes() {
   }, {}) : {};
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 min-h-screen pt-12 lg:pt-0 pb-32">
-      <Header title="Cotações" />
+    <div className="flex flex-col h-full bg-gray-50 min-h-screen pb-32">
+      
+      {/* O Header Global só aparece na listagem inicial */}
+      {currentView === 'list' && <Header title="Cotações" />}
+      
       <main className="px-4 lg:px-8 py-4 animate-fade-in">
         
         {currentView === 'list' && (
@@ -341,8 +344,12 @@ export default function Cotacoes() {
         )}
 
         {currentView === 'create' && (
-          <div className="max-w-xl mx-auto">
-            <button onClick={() => setCurrentView('list')} className="flex items-center gap-2 text-gray-500 hover:text-emerald-600 font-bold mb-6 transition-colors"><ArrowLeft size={20} /> Voltar</button>
+          <div className="max-w-xl mx-auto animate-fade-in">
+            {/* MINI CABEÇALHO PARA CRIAÇÃO */}
+            <div className="sticky top-0 z-[60] bg-white/95 backdrop-blur-md -mt-4 -mx-4 pt-6 px-4 py-4 lg:-mx-8 lg:-mt-4 lg:px-8 lg:pt-6 mb-6 border-b border-gray-100 shadow-sm rounded-b-3xl flex items-center transition-all">
+               <button onClick={() => setCurrentView('list')} className="flex items-center gap-2 text-gray-500 hover:text-emerald-600 font-bold"><ArrowLeft size={20} /> Voltar para Cotações</button>
+            </div>
+
             <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-200">
               <h2 className="text-xl font-black text-gray-800 mb-6 flex items-center gap-2"><Calculator className="text-emerald-600" /> Iniciar Nova Cotação</h2>
               <form onSubmit={handleCriarCotacao} className="space-y-4">
@@ -356,12 +363,14 @@ export default function Cotacoes() {
 
         {currentView === 'detail' && cotacaoAtiva && (
           <div className="animate-fade-in">
-            <div className="sticky top-0 z-40 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 bg-gray-50/80 backdrop-blur-md p-4 rounded-b-2xl shadow-sm border-b border-gray-200/50 -mx-4 px-4 lg:-mx-8 lg:px-8">
+            
+            {/* O NOVO REI DO TOPO: O sub-cabeçalho de Cotação */}
+            <div className="sticky top-0 z-[60] flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 bg-white/95 backdrop-blur-md p-4 pt-6 lg:py-5 lg:pt-6 rounded-b-3xl shadow-sm border-b border-gray-100 -mx-4 -mt-4 px-4 lg:-mx-8 lg:-mt-4 lg:px-8 transition-all">
               <div className="flex items-center gap-3">
-                <button onClick={() => setCurrentView('list')} className="text-gray-400 hover:text-emerald-600 transition-colors p-2 bg-white rounded-xl shadow-sm border border-gray-100 shrink-0"><ArrowLeft size={20} /></button>
+                <button onClick={() => setCurrentView('list')} className="text-gray-400 hover:text-emerald-600 transition-colors p-2 bg-gray-50 hover:bg-emerald-50 rounded-xl shadow-sm border border-gray-100 shrink-0"><ArrowLeft size={20} /></button>
                 <div className="flex flex-col">
                   <h2 className="text-lg md:text-xl font-black text-gray-800">{cotacaoAtiva.titulo}</h2>
-                  <p className="text-[10px] md:text-xs font-semibold text-gray-400 uppercase tracking-widest">{new Date(cotacaoAtiva.data).toLocaleDateString('pt-BR')} • {cotacaoAtiva.itens.length} itens</p>
+                  <p className="text-[10px] md:text-xs font-semibold text-emerald-600 uppercase tracking-widest">{new Date(cotacaoAtiva.data).toLocaleDateString('pt-BR')} • {cotacaoAtiva.itens.length} itens</p>
                 </div>
               </div>
 
@@ -377,9 +386,9 @@ export default function Cotacoes() {
                   <Trash size={16} /> <span className="hidden md:block font-bold text-xs">Excluir</span>
                 </button>
                 
-                <div className="flex bg-gray-200 p-1 rounded-xl shrink-0">
-                  <button onClick={() => setViewMode('produto')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'produto' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Por Produto</button>
-                  <button onClick={() => setViewMode('fornecedor')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'fornecedor' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Por Fornecedor</button>
+                <div className="flex bg-gray-100 p-1 rounded-xl shrink-0">
+                  <button onClick={() => setViewMode('produto')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'produto' ? 'bg-white text-gray-800 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700'}`}>Por Produto</button>
+                  <button onClick={() => setViewMode('fornecedor')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'fornecedor' ? 'bg-white text-gray-800 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700'}`}>Por Fornecedor</button>
                 </div>
 
                 {viewMode === 'produto' && (

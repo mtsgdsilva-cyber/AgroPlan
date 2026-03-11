@@ -17,14 +17,12 @@ export default function PlanejarVariedades() {
   const [selectedSafraId, setSelectedSafraId] = useState(null);
   const [selectedCulturaId, setSelectedCulturaId] = useState(null);
 
-  // Estados do Micro-Planejamento Flat
   const [editVarConfig, setEditVarConfig] = useState({}); 
-  const [selectionMode, setSelectionMode] = useState(null); // 'variedades' | 'taxas' | null
+  const [selectionMode, setSelectionMode] = useState(null); 
   const [loteSelecionados, setLoteSelecionados] = useState([]); 
   const [filtroVariedade, setFiltroVariedade] = useState(null);
   const [expandedRows, setExpandedRows] = useState({});
 
-  // Modais de Lote
   const [isModalVarOpen, setIsModalVarOpen] = useState(false);
   const [loteVarId, setLoteVarId] = useState('');
   const [isModalTaxaOpen, setIsModalTaxaOpen] = useState(false);
@@ -37,10 +35,9 @@ export default function PlanejarVariedades() {
   const getVariedadeNome = (id) => (variedades || []).find(v => v.id === id)?.nome || 'Semente Deletada';
   const getTaxaNome = (id) => (taxasPlantio || []).find(t => t.id === id)?.nome || 'Sem Taxa';
   
-  // Cores dinâmicas para as variedades baseadas no ID para o design slim
   const getVarColor = (id) => {
     const v = (variedades || []).find(v => v.id === id);
-    return v?.cor || '#3b82f6'; // Azul como padrão para sementes
+    return v?.cor || '#3b82f6'; 
   };
 
   const activeCultureCards = [];
@@ -84,10 +81,9 @@ export default function PlanejarVariedades() {
           let varsIniciais = (c.variedades || []).map(v => ({ 
             ...v, 
             tempId: generateId(),
-            taxaId: v.taxaId || c.taxaId || '' // Migra a taxa antiga para a linha, se existir
+            taxaId: v.taxaId || c.taxaId || '' 
           }));
 
-          // Se não houver variedades ainda, ou se a soma for menor que a área da cultura, cria a linha livre
           const currentSum = varsIniciais.reduce((sum, r) => sum + (parseFloat(r.areaHa) || 0), 0);
           const blockArea = parseFloat(c.areaHa) || 0;
           
@@ -210,14 +206,12 @@ export default function PlanejarVariedades() {
   const handleToggleLote = (uid) => setLoteSelecionados(prev => prev.includes(uid) ? prev.filter(id => id !== uid) : [...prev, uid]);
 
   const confirmarModalLote = (tipo) => {
-    // tipo = 'variedades' ou 'taxas'
     const valueToApply = tipo === 'variedades' ? loteVarId : loteTaxaId;
     if (!valueToApply) return;
 
     setEditVarConfig(prev => {
       const newState = { ...prev };
       loteSelecionados.forEach(uid => {
-        
         newState[uid] = {
           ...newState[uid],
           variedades: newState[uid].variedades.map(r => {
@@ -228,9 +222,6 @@ export default function PlanejarVariedades() {
               if (!filtroVariedade) return { ...r, [field]: '' };
             } else {
               if (filtroVariedade && r.variedadeId === filtroVariedade) return { ...r, [field]: valueToApply };
-              
-              // AQUI ESTÁ A CORREÇÃO: Removida a trava "!r[field]". 
-              // Agora ele sobrescreve sementes e taxas sem dó, com ou sem filtro!
               if (!filtroVariedade) return { ...r, [field]: valueToApply };
             }
             return r;
@@ -251,7 +242,7 @@ export default function PlanejarVariedades() {
   // ==========================================
   // CÁLCULOS
   // ==========================================
- const calcularEmbalagens = (areaHa, taxaId, variedadeId) => {
+  const calcularEmbalagens = (areaHa, taxaId, variedadeId) => {
     if (!areaHa) return { total: 0, tipo: '', erro: 'SEM ÁREA' };
     if (!variedadeId) return { total: 0, tipo: '', erro: 'FALTA SEMENTE' };
     if (!taxaId) return { total: 0, tipo: '', erro: 'FALTA TAXA' };
@@ -260,8 +251,6 @@ export default function PlanejarVariedades() {
     const varObj = (variedades || []).find(v => v.id === variedadeId);
     
     if (!taxa) return { total: 0, tipo: '', erro: 'TAXA EXCLUÍDA' };
-    
-    // AQUI É ONDE GERALMENTE DÁ O ERRO: A Semente não tem embalagem vinculada nela!
     if (!varObj?.embalagemId) return { total: 0, tipo: '', erro: 'VINCULE EMBALAGEM' }; 
     
     const emb = (embalagens || []).find(e => e.id === varObj.embalagemId);
@@ -269,7 +258,6 @@ export default function PlanejarVariedades() {
 
     let totalNecessario = 0;
     
-    // Validação de Compatibilidade de Unidades (Não deixa calcular Kg com Sementes)
     if (taxa.tipo === 'kg' && emb.tipoUnidade === 'kg') {
       totalNecessario = taxa.kgPorHa * areaHa;
     } else if (taxa.tipo === 'sementes_ha' && emb.tipoUnidade === 'sementes') {
@@ -293,17 +281,15 @@ export default function PlanejarVariedades() {
       config.variedades.forEach(r => {
         const val = parseFloat(r.areaHa) || 0;
         if (r.variedadeId) {
-          // Inicializa o objeto se não existir, agora com espaço para embalagens
           if (!resumo[r.variedadeId]) resumo[r.variedadeId] = { ha: 0, embalagens: 0, tipoEmb: '' };
           
           resumo[r.variedadeId].ha += val;
           areaTotalPlanejada += val;
 
-          // Calcula a embalagem dessa linha específica e soma ao total da semente
           const calcEmb = calcularEmbalagens(val, r.taxaId, r.variedadeId);
           if (!calcEmb.erro && calcEmb.total > 0) {
             resumo[r.variedadeId].embalagens += calcEmb.total;
-            resumo[r.variedadeId].tipoEmb = calcEmb.tipo; // Vai herdar se é Bag ou Saca
+            resumo[r.variedadeId].tipoEmb = calcEmb.tipo; 
           }
         } else {
           areaTotalLivre += val;
@@ -311,14 +297,13 @@ export default function PlanejarVariedades() {
       });
     });
     
-    // Converte o objeto num array ordenado pelos hectares
     const lista = Object.entries(resumo).map(([id, data]) => ({ id, ...data })).sort((a, b) => b.ha - a.ha);
     return { lista, areaTotalPlanejada, areaTotalLivre };
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 min-h-screen pt-12 lg:pt-0">
-      <Header title="Planejar Variedades e Taxas" />
+<div className="flex flex-col h-full bg-gray-50 min-h-screen">
+{currentView === 'list_cards' && <Header title="Planejar Variedades e Taxas" />}
       
       <main className="px-4 lg:px-8 py-4 animate-fade-in">
         
@@ -375,6 +360,10 @@ export default function PlanejarVariedades() {
             const resumoDinamico = getResumoEdicao();
             const todosUids = Object.keys(editVarConfig);
 
+            // Calcula o total geral de embalagens (Bags/Sacas) apenas das variedades
+            const totalGeralEmbalagens = resumoDinamico.lista.reduce((acc, item) => acc + (item.embalagens || 0), 0);
+            const tipoEmbGeral = resumoDinamico.lista.find(i => i.embalagens > 0)?.tipoEmb || '';
+
             const groupedAreas = Object.entries(editVarConfig).reduce((acc, [uid, config]) => {
               const talhao = (talhoes || []).find(t => t.id === config.talhaoId);
               if (!talhao) return acc;
@@ -388,10 +377,9 @@ export default function PlanejarVariedades() {
             return (
               <div className="animate-fade-in pb-32 min-h-screen">
                 
-                {/* CABEÇALHO E BOTÕES DE AÇÃO (STICKY + GLASSMORPHISM) */}
-                <div className="sticky top-0 z-40 flex flex-row items-center justify-between gap-4 mb-6 bg-gray-50/80 backdrop-blur-md p-4 rounded-b-2xl shadow-sm border-b border-gray-200/50 -mx-4 px-4 lg:-mx-8 lg:px-8">
+                {/* CABEÇALHO E BOTÕES DE AÇÃO */}
+                <div className="sticky top-0 z-[60] flex flex-row items-center justify-between gap-4 mb-6 bg-white/95 backdrop-blur-md p-4 pt-6 lg:py-5 lg:pt-6 rounded-b-3xl shadow-sm border-b border-gray-100 -mx-4 -mt-4 px-4 lg:-mx-8 lg:-mt-4 lg:px-8 transition-all">
                   
-                  {/* TÍTULO E BOTÃO DE VOLTAR */}
                   <div className="flex items-center gap-3">
                     <button onClick={() => setCurrentView('list_cards')} className="text-gray-400 hover:text-blue-600 transition-colors p-2 bg-white rounded-xl shadow-sm border border-gray-100 shrink-0">
                       <ArrowLeft size={20} />
@@ -404,7 +392,6 @@ export default function PlanejarVariedades() {
                     </div>
                   </div>
                   
-                  {/* BOTÕES DE SELEÇÃO (ICONES NO MOBILE) */}
                   <div className="flex items-center gap-2">
                     {!selectionMode ? (
                       <>
@@ -428,13 +415,22 @@ export default function PlanejarVariedades() {
                   </div>
                 </div>
 
-                {/* FAIXA DE RESUMO E FILTRO (FLEX-WRAP PARA MÚLTIPLAS LINHAS) */}
-                <div className="flex flex-wrap gap-3 pb-4 pt-1 px-1 mb-6">
-                  <div onClick={() => setFiltroVariedade(null)} className={`flex-shrink-0 flex flex-col justify-center px-4 py-3 rounded-xl cursor-pointer transition-all min-w-[120px] ${!filtroVariedade ? 'bg-gray-50 text-gray-800 border border-gray-300 shadow-inner' : 'bg-white text-gray-500 border border-gray-200 hover:border-gray-300'}`}>
-                    <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 flex items-center gap-1 mb-0.5"><Filter size={12}/> Mostrar Todos</span>
-                    <span className="font-semibold text-lg leading-tight">{resumoDinamico.areaTotalPlanejada.toLocaleString('pt-BR')} ha</span>
+                {/* CARDS DE FILTRO E RESUMO (NOVA LÓGICA DE GRID PARA MOBILE) */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 pb-4 pt-1 px-1 mb-6">
+                  
+                  {/* CARD TOTALIZADOR */}
+                  <div onClick={() => setFiltroVariedade(null)} className={`flex flex-col items-center justify-center px-2 py-4 rounded-xl cursor-pointer transition-all h-full ${!filtroVariedade ? 'bg-gray-50 text-gray-800 border border-gray-300 shadow-inner' : 'bg-white text-gray-500 border border-gray-200 hover:border-gray-300'}`}>
+                    <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 flex items-center gap-1 mb-1"><Filter size={12}/> Mostrar Todos</span>
+                    <span className="font-semibold text-lg leading-tight text-center">{resumoDinamico.areaTotalPlanejada.toLocaleString('pt-BR')} ha</span>
+                    {totalGeralEmbalagens > 0 && (
+                      <span className="text-[10px] font-bold text-gray-500 mt-2 flex items-center justify-center gap-1 uppercase tracking-wider text-center">
+                        <Package size={12} className="text-gray-400 shrink-0" />
+                        {totalGeralEmbalagens.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} {tipoEmbGeral}
+                      </span>
+                    )}
                   </div>
                   
+                  {/* CARDS DAS VARIEDADES */}
                   {resumoDinamico.lista.map((item) => {
                     const corVar = getVarColor(item.id);
                     const isSelected = filtroVariedade === item.id;
@@ -443,27 +439,27 @@ export default function PlanejarVariedades() {
                       <div 
                         key={item.id} 
                         onClick={() => setFiltroVariedade(isSelected ? null : item.id)} 
-                        className="flex-shrink-0 flex flex-col justify-center px-4 py-3 rounded-xl cursor-pointer transition-all min-w-[140px] bg-white shadow-sm hover:shadow-md overflow-hidden relative"
+                        className="flex flex-col items-center justify-center px-2 py-4 rounded-xl cursor-pointer transition-all bg-white shadow-sm hover:shadow-md overflow-hidden relative h-full text-center"
                         style={{ 
                           border: `1px solid ${isSelected ? corVar : '#e5e7eb'}`,
                           boxShadow: isSelected ? `0 0 0 1px ${corVar}` : 'none'
                         }}
                       >
-                        <span className="text-sm font-bold tracking-wide text-gray-600 truncate max-w-[130px] mb-1 flex items-center gap-1.5">
-                          <Sprout size={14} style={{ color: corVar }} />
-                          {getVariedadeNome(item.id)}
+                        {/* ICONE AGORA TEM shrink-0 E FICA FIXO */}
+                        <span className="text-xs md:text-sm font-bold tracking-wide text-gray-600 truncate w-full mb-1.5 flex items-center justify-center gap-1.5">
+                          <Sprout size={14} className="shrink-0" style={{ color: corVar }} />
+                          <span className="truncate">{getVariedadeNome(item.id)}</span>
                         </span>
                         
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-lg leading-none text-gray-700">
+                        <div className="flex flex-col items-center w-full">
+                          <span className="font-semibold text-base md:text-lg leading-none text-gray-700">
                             {item.ha.toLocaleString('pt-BR')} ha
                           </span>
                           
-                          {/* NOVA LINHA: SOMA DE BAGS/SACAS */}
                           {item.embalagens > 0 && (
-                            <span className="text-[10px] font-bold text-gray-500 mt-2 flex items-center gap-1 uppercase tracking-wider">
-                              <Package size={12} className="text-gray-400" />
-                              {item.embalagens.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} {item.tipoEmb}
+                            <span className="text-[9px] md:text-[10px] font-bold text-gray-500 mt-2 flex items-center justify-center gap-1 uppercase tracking-wider truncate w-full">
+                              <Package size={12} className="text-gray-400 shrink-0" />
+                              <span className="truncate">{item.embalagens.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} {item.tipoEmb}</span>
                             </span>
                           )}
                         </div>
@@ -471,9 +467,10 @@ export default function PlanejarVariedades() {
                     )
                   })}
 
+                  {/* CARD DE ÁREA LIVRE */}
                   {resumoDinamico.areaTotalLivre > 0 && (
-                    <div className="flex-shrink-0 flex flex-col justify-center px-4 py-3 rounded-xl border border-dashed border-gray-300 bg-gray-50 transition-all min-w-[120px]">
-                      <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-0.5">Ainda Livre</span>
+                    <div className="flex flex-col items-center justify-center px-2 py-4 rounded-xl border border-dashed border-gray-300 bg-gray-50 transition-all h-full text-center">
+                      <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1">Ainda Livre</span>
                       <span className="font-semibold text-lg leading-tight text-gray-500">{resumoDinamico.areaTotalLivre.toLocaleString('pt-BR')} ha</span>
                     </div>
                   )}
@@ -512,13 +509,11 @@ export default function PlanejarVariedades() {
                                   return (
                                     <div key={row.tempId} className="mb-2 md:mb-1.5 animate-fade-in relative flex flex-col md:flex-row md:items-center gap-1.5 md:gap-2 w-full">
                                       
-                                      {/* LINHA PRINCIPAL (CÁPSULAS SOLTAS) */}
                                       <div 
                                         onClick={() => { if(window.innerWidth < 768) setExpandedRows(prev => ({...prev, [row.tempId]: !prev[row.tempId]})) }}
                                         className="flex flex-row items-center gap-1.5 md:gap-2 w-full md:w-auto md:cursor-default cursor-pointer"
                                       >
                                         
-                                        {/* CHECKBOX */}
                                         {selectionMode && index === 0 && (
                                           <div className="shrink-0 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleToggleLote(uid); }}>
                                             {isSelected ? <CheckSquare className={modeColorText} size={20}/> : <Square className="text-gray-300" size={20}/>}
@@ -526,14 +521,12 @@ export default function PlanejarVariedades() {
                                         )}
                                         {selectionMode && index !== 0 && <div className="w-[20px] shrink-0 hidden md:block"></div>}
 
-                                        {/* NOME DO TALHÃO */}
                                         <div className={`border rounded-xl px-2 py-2.5 w-16 md:w-32 shrink-0 flex items-center justify-center md:justify-start transition-all ${index === 0 ? 'bg-white border-gray-200 shadow-sm' : 'bg-transparent border-transparent md:border-gray-100 opacity-80'}`}>
                                           <span className={`font-semibold truncate text-[11px] md:text-sm ${index === 0 ? 'text-gray-700' : 'text-gray-400'}`}>
                                             {index === 0 ? talhao.nome : '↳ Divisão'}
                                           </span>
                                         </div>
 
-                                        {/* ÁREA */}
                                         <div 
                                           onClick={(e) => e.stopPropagation()} 
                                           className={`bg-white border border-gray-200 shadow-sm rounded-xl flex items-center w-20 md:w-28 shrink-0 transition-all ${selectionMode ? 'opacity-60 bg-gray-50' : 'focus-within:border-gray-400 focus-within:ring-1 focus-within:ring-gray-100'}`}
@@ -550,7 +543,6 @@ export default function PlanejarVariedades() {
                                           <span className="text-[10px] md:text-[11px] font-medium text-gray-400 pr-1.5 md:pr-3">ha</span>
                                         </div>
 
-                                        {/* VARIEDADE (SEMENTE) */}
                                         <div 
                                           onClick={(e) => { e.stopPropagation(); if(selectionMode) handleToggleLote(uid); }}
                                           className={`bg-white border shadow-sm rounded-xl flex-1 md:w-48 shrink-0 transition-all overflow-hidden ${selectionMode === 'variedades' ? `cursor-pointer ${modeColorHover}` : 'focus-within:border-blue-400 focus-within:ring-1 focus-within:ring-blue-100'} ${!row.variedadeId ? 'bg-blue-50/30 border-blue-100' : 'border-gray-200'} ${selectionMode === 'taxas' ? 'opacity-60' : ''}`}
@@ -567,7 +559,6 @@ export default function PlanejarVariedades() {
                                           </select>
                                         </div>
 
-                                        {/* LIXEIRA */}
                                         {index !== 0 && (
                                           <button
                                             onClick={(e) => { e.stopPropagation(); handleRemoveVarRow(uid, row.tempId); }}
@@ -579,14 +570,12 @@ export default function PlanejarVariedades() {
                                         )}
                                       </div>
 
-                                      {/* ÁREA EXPANSÍVEL NO MOBILE */}
                                       <div className={`${expandedRows[row.tempId] ? 'flex' : 'hidden'} md:flex flex-row items-center gap-1.5 md:gap-2 w-full md:w-auto animate-fade-in mt-1 md:mt-0`}>
                                         
                                         <div className="w-5 shrink-0 flex justify-end md:hidden">
                                            <div className="w-3 h-4 border-b-2 border-l-2 border-gray-300 rounded-bl-xl"></div>
                                         </div>
 
-                                        {/* TAXA */}
                                         <div 
                                           onClick={(e) => { e.stopPropagation(); if(selectionMode) handleToggleLote(uid); }}
                                           className={`bg-white border shadow-sm rounded-xl flex-1 md:w-36 shrink-0 transition-all ${selectionMode === 'taxas' ? `cursor-pointer ${modeColorHover}` : 'focus-within:border-orange-400 focus-within:ring-1 focus-within:ring-orange-100'} ${!row.taxaId ? 'bg-orange-50/30 border-orange-100' : 'border-gray-200'} ${selectionMode === 'variedades' ? 'opacity-60' : ''}`}
@@ -602,7 +591,6 @@ export default function PlanejarVariedades() {
                                           </select>
                                         </div>
 
-                                        {/* BAGS */}
                                         <div className={`bg-white border border-gray-200 shadow-sm rounded-xl px-2 py-2.5 w-auto md:w-32 shrink-0 flex items-center justify-center transition-all ${selectionMode ? 'opacity-60' : ''}`}>
                                           {calcEmb.total > 0 ? (
                                             <span className="text-[11px] md:text-xs font-bold text-gray-700 truncate flex items-center gap-1.5">
@@ -650,7 +638,7 @@ export default function PlanejarVariedades() {
         )}
 
         {/* ========================================== */}
-        {/* MODAL LOTE: TAXAS (LISTA ÚNICA)            */}
+        {/* MODAL LOTE: TAXAS E VARIEDADES */}
         {/* ========================================== */}
         {isModalTaxaOpen && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in" onClick={() => setIsModalTaxaOpen(false)}>
@@ -679,6 +667,37 @@ export default function PlanejarVariedades() {
                 })}
               </div>
               <button onClick={() => confirmarModalLote('taxas')} className="w-full py-3.5 bg-orange-600 text-white font-semibold text-base rounded-2xl hover:bg-orange-700 shadow-sm transition-colors">Confirmar</button>
+            </div>
+          </div>
+        )}
+
+        {isModalVarOpen && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in" onClick={() => setIsModalVarOpen(false)}>
+            <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2"><Sprout className="text-blue-500" size={20}/> Sementes</h3>
+                <button onClick={() => setIsModalVarOpen(false)} className="bg-gray-50 text-gray-400 p-2 rounded-full hover:bg-red-50 hover:text-red-500 transition-colors"><X size={18}/></button>
+              </div>
+              
+              <div className="flex flex-col gap-2 mb-6 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                <div onClick={() => setLoteVarId('nenhuma')} className={`flex items-center gap-4 p-3.5 rounded-2xl border transition-all cursor-pointer ${loteVarId === 'nenhuma' ? 'border-gray-400 bg-gray-50 shadow-sm' : 'border-gray-100 bg-white hover:border-gray-300'}`}>
+                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center shrink-0"><X size={16} className="text-gray-400" /></div>
+                  <span className={`font-semibold text-[14px] ${loteVarId === 'nenhuma' ? 'text-gray-800' : 'text-gray-500'}`}>Nenhuma <span className="font-medium text-xs text-gray-400 ml-1">(Limpar)</span></span>
+                </div>
+
+                {(variedades || []).filter(v => v.culturaId === selectedCulturaId).map(v => {
+                  const isSelected = loteVarId === v.id;
+                  return (
+                    <div key={v.id} onClick={() => setLoteVarId(v.id)} className={`flex items-center gap-4 p-3.5 rounded-2xl border transition-all cursor-pointer ${isSelected ? 'border-blue-400 bg-blue-50 shadow-sm ring-1 ring-blue-400' : 'border-gray-100 bg-white hover:border-gray-200'}`}>
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: `${v.cor}20` }}>
+                        <Sprout size={16} style={{ color: v.cor }} />
+                      </div>
+                      <span className={`font-semibold text-[14px] ${isSelected ? 'text-gray-900' : 'text-gray-700'}`}>{v.nome}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <button onClick={() => confirmarModalLote('variedades')} className="w-full py-3.5 bg-blue-600 text-white font-semibold text-base rounded-2xl hover:bg-blue-700 shadow-sm transition-colors">Confirmar</button>
             </div>
           </div>
         )}

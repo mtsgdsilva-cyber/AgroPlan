@@ -155,8 +155,10 @@ export default function Recebimentos() {
   const formatQtd = (val) => Number(val).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 min-h-screen pt-12 lg:pt-0 pb-32">
-      <Header title="Recebimentos" />
+    <div className="flex flex-col h-full bg-gray-50 min-h-screen pb-32">
+      
+      {/* O Header Global só aparece na listagem inicial */}
+      {currentView === 'list' && <Header title="Recebimentos" />}
       
       <main className="px-4 lg:px-8 py-4 animate-fade-in">
         
@@ -164,8 +166,8 @@ export default function Recebimentos() {
         {currentView === 'list' && (
           <div>
             
-            {/* CABEÇALHO FIXO */}
-            <div className="sticky top-0 z-40 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 bg-gray-50/80 backdrop-blur-md p-4 rounded-b-2xl shadow-sm border-b border-gray-200/50 -mx-4 px-4 lg:-mx-8 lg:px-8">
+            {/* CABEÇALHO RELATIVO (Para não brigar com o Header Global) */}
+            <div className="relative z-30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 bg-gray-50/80 backdrop-blur-md p-4 rounded-b-2xl shadow-sm border-b border-gray-200/50 -mx-4 px-4 lg:-mx-8 lg:px-8">
               <div className="flex items-center gap-3">
                 <div className="bg-emerald-600 p-2.5 rounded-xl text-white shadow-sm shrink-0">
                   <PackageCheck size={24} />
@@ -374,17 +376,18 @@ export default function Recebimentos() {
           </div>
         )}
 
-        {/* VIEW 2: FORMULÁRIO DE LANÇAMENTO DA NF (MANTIDO) */}
+        {/* VIEW 2: FORMULÁRIO DE LANÇAMENTO DA NF (O NOVO REI DO TOPO) */}
         {currentView === 'receive' && pedidoAtivo && (
           <div className="max-w-4xl mx-auto animate-fade-in">
-            <div className="sticky top-0 z-40 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 bg-gray-50/80 backdrop-blur-md p-4 rounded-b-2xl shadow-sm border-b border-gray-200/50 -mx-4 px-4 lg:-mx-8 lg:px-8">
+            
+            <div className="sticky top-0 z-[60] flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 bg-white/95 backdrop-blur-md p-4 pt-6 lg:py-5 lg:pt-6 rounded-b-3xl shadow-sm border-b border-gray-100 -mx-4 -mt-4 px-4 lg:-mx-8 lg:-mt-4 lg:px-8 transition-all">
               <div className="flex items-center gap-3">
-                <button onClick={() => setCurrentView('list')} className="text-gray-400 hover:text-emerald-600 transition-colors p-2 bg-white rounded-xl shadow-sm border border-gray-100 shrink-0"><ArrowLeft size={20} /></button>
+                <button onClick={() => setCurrentView('list')} className="text-gray-400 hover:text-emerald-600 transition-colors p-2 bg-gray-50 hover:bg-emerald-50 rounded-xl shadow-sm border border-gray-100 shrink-0"><ArrowLeft size={20} /></button>
                 <div className="flex flex-col">
                   <h2 className="text-lg md:text-xl font-black text-gray-800 flex items-center gap-2">
                     Lançar NF - Pedido #{pedidoAtivo.numero || pedidoAtivo.id.slice(0, 6).toUpperCase()}
                   </h2>
-                  <p className="text-[10px] md:text-xs font-semibold text-gray-400 uppercase tracking-widest">{pedidoAtivo.fornecedor}</p>
+                  <p className="text-[10px] md:text-xs font-semibold text-emerald-600 uppercase tracking-widest">{pedidoAtivo.fornecedor}</p>
                 </div>
               </div>
             </div>

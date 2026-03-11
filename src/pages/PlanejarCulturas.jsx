@@ -212,7 +212,7 @@ export default function PlanejarCulturas() {
     });
   };
 
-const confirmarModalCultura = () => {
+  const confirmarModalCultura = () => {
     if (!loteCulturaId) return;
     setEditCulturasConfig(prev => {
       const newState = { ...prev };
@@ -228,10 +228,6 @@ const confirmarModalCultura = () => {
           // Se o usuário escolheu aplicar uma nova Cultura
           else {
             if (filtroCultura && r.culturaId === filtroCultura) return { ...r, culturaId: loteCulturaId };
-            
-            // AQUI ESTÁ A CORREÇÃO: 
-            // Antes tinha um "&& !r.culturaId" que impedia de sobrescrever. 
-            // Agora ele sobrescreve a cultura de todo o talhão selecionado, independente do que tinha antes!
             if (!filtroCultura) return { ...r, culturaId: loteCulturaId }; 
           }
           return r;
@@ -292,8 +288,10 @@ const confirmarModalCultura = () => {
   }, {});
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 min-h-screen pt-12 lg:pt-0">
-      <Header title="Planejar Culturas" />
+    <div className="flex flex-col h-full bg-gray-50 min-h-screen">
+      
+      {/* ESTA É A MÁGICA: O Header global só aparece na tela inicial de Safras */}
+      {currentView === 'list_safras' && <Header title="Planejar Culturas" />}
       
       <main className="px-4 lg:px-8 py-4 animate-fade-in">
         
@@ -433,8 +431,12 @@ const confirmarModalCultura = () => {
 
         {/* VIEW 2: CRIAR SAFRA */}
         {currentView === 'create_safra' && (
-          <div>
-            <button onClick={() => setCurrentView('list_safras')} className="flex items-center gap-2 text-gray-500 hover:text-emerald-600 font-bold mb-6"><ArrowLeft size={20} /> Voltar</button>
+          <div className="animate-fade-in">
+            {/* MINI CABEÇALHO PARA TELA SEM O HEADER PRINCIPAL */}
+            <div className="sticky top-0 z-[60] bg-white/95 backdrop-blur-md -mt-4 -mx-4 pt-6 px-4 py-4 lg:-mx-8 lg:-mt-4 lg:px-8 lg:pt-6 mb-6 border-b border-gray-100 shadow-sm rounded-b-3xl flex items-center transition-all">
+               <button onClick={() => setCurrentView('list_safras')} className="flex items-center gap-2 text-gray-500 hover:text-emerald-600 font-bold"><ArrowLeft size={20} /> Voltar para Safras</button>
+            </div>
+
             <Card className="mb-6 border-l-4 border-l-emerald-600">
               <h2 className="text-md font-bold text-gray-800 mb-4 flex items-center gap-2"><CalendarDays size={20} className="text-emerald-600" /> Identificação da Safra</h2>
               <div className="flex flex-col gap-2 w-full max-w-md">
@@ -450,32 +452,30 @@ const confirmarModalCultura = () => {
           </div>
         )}
 
-        {/* VIEW 3 FOI MESCLADA COM A VIEW 1 */}
-
        {/* VIEW 4: DISTRIBUIR CULTURAS (MINI-CARDS FLAT) */}
         {currentView === 'distribute' && safraAtiva && (
           <div className="pb-32 min-h-screen animate-fade-in">
             
-            {/* CABEÇALHO FIXO COM AÇÕES (STICKY + GLASSMORPHISM) */}
-            <div className="sticky top-0 z-40 flex flex-row items-center justify-between gap-4 mb-6 bg-gray-50/80 backdrop-blur-md p-4 rounded-b-2xl shadow-sm border-b border-gray-200/50 -mx-4 px-4 lg:-mx-8 lg:px-8">
+            {/* NOVO DONO DO TOPO: O sub-cabeçalho assume a posição top-0 absoluto e ganha bordas arredondadas */}
+            <div className="sticky top-0 z-[60] flex flex-row items-center justify-between gap-4 mb-6 bg-white/95 backdrop-blur-md p-4 pt-6 lg:py-5 lg:pt-6 rounded-b-3xl shadow-sm border-b border-gray-100 -mx-4 -mt-4 px-4 lg:-mx-8 lg:-mt-4 lg:px-8 transition-all">
               
               {/* TÍTULO E BOTÃO DE VOLTAR */}
               <div className="flex items-center gap-3">
-                <button onClick={() => setCurrentView('list_safras')} className="text-gray-400 hover:text-emerald-600 transition-colors p-2 bg-white rounded-xl shadow-sm border border-gray-100 shrink-0">
+                <button onClick={() => setCurrentView('list_safras')} className="text-gray-400 hover:text-emerald-600 transition-colors p-2 bg-gray-50 hover:bg-emerald-50 rounded-xl shadow-sm border border-gray-100 shrink-0">
                   <ArrowLeft size={20} />
                 </button>
                 <div className="flex flex-col">
                   <h2 className="text-lg md:text-xl font-black text-gray-800 flex items-center gap-2">
                     Distribuição em Lote
                   </h2>
-                  <p className="text-[10px] md:text-xs font-semibold text-gray-400 uppercase tracking-widest">Selecione e aplique</p>
+                  <p className="text-[10px] md:text-xs font-semibold text-emerald-600 uppercase tracking-widest">Safra {safraAtiva.safra}</p>
                 </div>
               </div>
               
-              {/* BOTÃO DE SELEÇÃO (ICONE NO MOBILE) */}
+              {/* BOTÃO DE SELEÇÃO */}
               <div className="flex items-center gap-2">
                 {!isSelectionMode ? (
-                  <button onClick={() => setIsSelectionMode(true)} className="text-emerald-600 bg-white border border-emerald-200 p-2.5 md:px-4 md:py-2.5 rounded-xl shadow-sm hover:bg-emerald-50 transition-colors flex items-center justify-center gap-2" title="Alterar Cultura em Lote">
+                  <button onClick={() => setIsSelectionMode(true)} className="text-emerald-600 bg-gray-50 border border-emerald-100 p-2.5 md:px-4 md:py-2.5 rounded-xl shadow-sm hover:bg-emerald-100 transition-colors flex items-center justify-center gap-2" title="Alterar Cultura em Lote">
                     <Leaf size={18} /> <span className="hidden md:block font-semibold text-sm">Alterar Culturas</span>
                   </button>
                 ) : (
@@ -483,7 +483,7 @@ const confirmarModalCultura = () => {
                     <button onClick={() => selecionarTodosLote()} className="text-xs md:text-sm font-semibold text-emerald-700 bg-emerald-50 px-3 py-2.5 rounded-xl border border-emerald-200 shadow-sm hover:bg-emerald-100 transition-colors whitespace-nowrap">
                       {loteSelecionados.length === (talhoes || []).length ? 'Desmarcar' : 'Tudo'}
                     </button>
-                    <button onClick={() => { setIsSelectionMode(false); setLoteSelecionados([]); }} className="text-gray-500 hover:text-red-500 bg-white border border-gray-200 p-2.5 rounded-xl shadow-sm shrink-0 flex items-center justify-center" title="Sair do Modo Seleção">
+                    <button onClick={() => { setIsSelectionMode(false); setLoteSelecionados([]); }} className="text-gray-500 hover:text-red-500 bg-gray-50 border border-gray-200 p-2.5 rounded-xl shadow-sm shrink-0 flex items-center justify-center" title="Sair do Modo Seleção">
                       <X size={18} />
                     </button>
                   </div>

@@ -51,7 +51,7 @@ export default function PlanejarInsumos() {
   // ESTADOS DO ASSISTENTE DE CLONAGEM (WIZARD)
   // ==========================================
   const [isWizardOpen, setIsWizardOpen] = useState(false);
-  const [wizardStep, setWizardStep] = useState(1); // 1: Selecionar Cultura, 2: Escolher Itens, 3: Revisão individual
+  const [wizardStep, setWizardStep] = useState(1); 
   const [wizardSourceCulturaId, setWizardSourceCulturaId] = useState('');
   const [wizardAvailableItems, setWizardAvailableItems] = useState([]);
   const [wizardSelectedItems, setWizardSelectedItems] = useState([]);
@@ -59,7 +59,6 @@ export default function PlanejarInsumos() {
 
   const culturasComInsumosNaSafra = [...new Set((insumosPlan || []).filter(i => i.safraId === selectedSafraId && i.culturaId !== selectedCulturaId).map(i => i.culturaId))];
   
-  // Mapeia os IDs dos itens que a cultura atual já tem (Nome + Categoria iguais)
   const jaImportadosIds = wizardAvailableItems.filter(sourceItem => {
     return insumosDaCulturaAtiva.some(current => 
       current.categoria === sourceItem.categoria && 
@@ -132,6 +131,7 @@ export default function PlanejarInsumos() {
       aplicacoes: modoCalculo === 'calcular' ? parseFloat(aplicacoes) : null,
       qtdCalculada: modoCalculo === 'calcular' ? qtdCalculada : null,
       qtdFinal: parseFloat(qtdFinal), unidade
+      // Ao salvar, a propriedade 'needsReview' não é passada, fazendo o alerta sumir!
     };
 
     if (editingId) {
@@ -151,27 +151,37 @@ export default function PlanejarInsumos() {
     }, "danger");
   };
 
+ // ATUALIZADA: Ignora compras diretas e aplicações parciais (reboleiras)
   const handleAtualizarArea = () => {
     const areaAntiga = lockedAreas[chaveCulturaAtiva];
     const areaNova = totalAreaAtiva;
-    const razao = areaNova / areaAntiga;
 
     setInsumosPlan(prev => prev.map(insumo => {
       if (insumo.safraId === selectedSafraId && insumo.culturaId === selectedCulturaId) {
+        
+        // REGRA 1: Compra direta fica intacta, não pede revisão.
+        if (insumo.modoCalculo === 'direta') {
+          return insumo; 
+        }
+
         if (insumo.modoCalculo === 'calcular') {
-          const novaAreaApp = (insumo.areaAplicacao / areaAntiga) * areaNova;
+          // REGRA 2: Se a área de aplicação era MENOR que a área total antiga, foi aplicação parcial. Fica intacto!
+          // (Usamos uma margem de tolerância de 0.05 para evitar erros de dízima no JavaScript)
+          if (areaAntiga - insumo.areaAplicacao > 0.05) {
+            return insumo; 
+          }
+
+          // REGRA 3: Se era aplicação em Área Total, aí sim recalcula e acende o alerta laranja!
+          const novaAreaApp = areaNova;
           const novaQtdCalc = novaAreaApp * insumo.dose * insumo.aplicacoes;
-          const novaQtdFinal = (insumo.qtdFinal / insumo.qtdCalculada) * novaQtdCalc;
-          return { ...insumo, areaAplicacao: novaAreaApp, qtdCalculada: novaQtdCalc, qtdFinal: isNaN(novaQtdFinal) ? novaQtdCalc : novaQtdFinal };
-        } else {
-          return { ...insumo, qtdFinal: insumo.qtdFinal * razao };
+          return { ...insumo, areaAplicacao: novaAreaApp, qtdCalculada: novaQtdCalc, needsReview: true };
         }
       }
       return insumo;
     }));
 
     setLockedAreas(prev => ({...prev, [chaveCulturaAtiva]: areaNova}));
-    showAlert("Sucesso", "Cálculos recalibrados para a nova área!", "success");
+    showAlert("Sucesso", "Base atualizada! Apenas insumos de área total pedem revisão.", "success");
   };
 
   // ==========================================
@@ -197,9 +207,9 @@ export default function PlanejarInsumos() {
 
   const loadWizardItemIntoState = (index) => {
     const item = wizardSelectedItems[index];
-    setEditingId(null); // Trata como um insumo NOVO
+    setEditingId(null); 
     setCategoria(item.categoria); setNomeProduto(item.nomeProduto); setModoCalculo(item.modoCalculo);
-    // Área é forçada para a área da cultura atual!
+    // Área puxa a da cultura, mas AGORA PODE SER EDITADA
     setAreaAplicacao((lockedAreas[chaveCulturaAtiva] || totalAreaAtiva).toString());
     setDose(item.dose?.toString() || ''); setAplicacoes(item.aplicacoes?.toString() || '1'); setUnidade(item.unidade);
     if (item.modoCalculo === 'direta') setQtdFinal(item.qtdFinal?.toString() || ''); else setQtdFinal('');
@@ -226,11 +236,9 @@ export default function PlanejarInsumos() {
       qtdFinal: parseFloat(qtdFinal), unidade
     };
 
-    // Salva o item
     setInsumosPlan(prev => [...prev, novoInsumo]);
     if (!lockedAreas[chaveCulturaAtiva]) setLockedAreas(prev => ({...prev, [chaveCulturaAtiva]: totalAreaAtiva}));
 
-    // Verifica se tem próximo
     if (wizardCurrentIndex + 1 < wizardSelectedItems.length) {
       const nextIndex = wizardCurrentIndex + 1;
       setWizardCurrentIndex(nextIndex);
@@ -361,8 +369,8 @@ export default function PlanejarInsumos() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 min-h-screen pt-12 lg:pt-0 pb-32">
-      <Header title="Planejar Insumos" />
+   <div className="flex flex-col h-full bg-gray-50 min-h-screen">
+      {currentView === 'list_cards' && <Header title="Planejar Insumos" />}
       <main className="px-4 lg:px-8 py-4 animate-fade-in">
         
         {currentView === 'list_cards' && (
@@ -400,7 +408,7 @@ export default function PlanejarInsumos() {
         {currentView === 'detail' && (
           <div className="animate-fade-in">
             
-            <div className="sticky top-0 z-40 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4 bg-gray-50/80 backdrop-blur-md p-4 rounded-b-2xl shadow-sm border-b border-gray-200/50 -mx-4 px-4 lg:-mx-8 lg:px-8">
+            <div className="sticky top-0 z-[60] flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 bg-white/95 backdrop-blur-md p-4 pt-6 lg:py-5 lg:pt-6 rounded-b-3xl shadow-sm border-b border-gray-100 -mx-4 -mt-4 px-4 lg:-mx-8 lg:-mt-4 lg:px-8 transition-all">
               <div className="flex items-center gap-3">
                 <button onClick={() => setCurrentView('list_cards')} className="text-gray-400 hover:text-emerald-600 transition-colors p-2 bg-white rounded-xl shadow-sm border border-gray-100 shrink-0"><ArrowLeft size={20} /></button>
                 <div className="flex flex-col">
@@ -480,7 +488,16 @@ export default function PlanejarInsumos() {
                         const isSelected = selectedItems.includes(insumo.id);
 
                         return (
-                          <div key={insumo.id} className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-all ${isSelected ? 'border-emerald-400 ring-1 ring-emerald-400' : 'border-gray-200 hover:border-emerald-300'}`}>
+                          <div key={insumo.id} className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-all ${insumo.needsReview ? 'border-orange-500 ring-2 ring-orange-500 shadow-orange-100' : isSelected ? 'border-emerald-400 ring-1 ring-emerald-400' : 'border-gray-200 hover:border-emerald-300'}`}>
+                            
+                            {/* BANNER DE REVISÃO (APARECE QUANDO A ÁREA É ATUALIZADA) */}
+                            {insumo.needsReview && !isSelectionMode && (
+                              <div className="bg-orange-500 text-white text-[11px] md:text-xs font-bold px-4 py-2.5 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                                <span className="flex items-center gap-2"><AlertTriangle size={16}/> Área recalculada! A Quantidade Final precisa ser conferida.</span>
+                                <button onClick={(e) => abrirModalEdicao(insumo, e)} className="bg-white text-orange-600 px-4 py-1.5 rounded shadow-sm hover:bg-orange-50 w-full md:w-auto text-center transition-colors">Atualizar quantidade final</button>
+                              </div>
+                            )}
+
                             <div onClick={() => isSelectionMode ? toggleSelection(insumo.id) : setExpandedItems(prev => ({...prev, [insumo.id]: !isExpanded}))} className={`p-3 md:p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 cursor-pointer ${isSelectionMode ? 'hover:bg-emerald-50/50' : 'bg-gray-50/30 hover:bg-gray-50'}`}>
                               <div className="flex items-center gap-3">
                                 {isSelectionMode && <div className="shrink-0">{isSelected ? <CheckSquare className="text-emerald-500" size={22}/> : <Square className="text-gray-300" size={22}/>}</div>}
@@ -491,9 +508,9 @@ export default function PlanejarInsumos() {
                                 </div>
                               </div>
                               <div className="flex items-center justify-between md:justify-end w-full md:w-auto gap-4 pt-2 border-t border-gray-100 md:border-none md:pt-0">
-                                <div className={`border px-3 py-1.5 rounded-lg flex items-center gap-1.5 ${isSelected ? 'bg-emerald-100 border-emerald-200' : 'bg-emerald-50 border-emerald-100'}`}>
-                                  <span className="text-sm font-black text-emerald-700">{insumo.qtdFinal.toLocaleString('pt-BR', {maximumFractionDigits: 2})}</span>
-                                  <span className="text-xs font-bold text-emerald-600">{insumo.unidade}</span>
+                                <div className={`border px-3 py-1.5 rounded-lg flex items-center gap-1.5 ${insumo.needsReview ? 'bg-orange-100 border-orange-200' : isSelected ? 'bg-emerald-100 border-emerald-200' : 'bg-emerald-50 border-emerald-100'}`}>
+                                  <span className={`text-sm font-black ${insumo.needsReview ? 'text-orange-700' : 'text-emerald-700'}`}>{insumo.qtdFinal.toLocaleString('pt-BR', {maximumFractionDigits: 2})}</span>
+                                  <span className={`text-xs font-bold ${insumo.needsReview ? 'text-orange-600' : 'text-emerald-600'}`}>{insumo.unidade}</span>
                                 </div>
                                 {!isSelectionMode && (
                                   <div className="flex gap-2">
@@ -511,8 +528,8 @@ export default function PlanejarInsumos() {
                                   <>
                                     <div className="flex flex-col"><span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Dose / HA</span><span className="font-semibold text-gray-700">{insumo.dose} {insumo.unidade}</span></div>
                                     <div className="flex flex-col"><span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Aplicações</span><span className="font-semibold text-gray-700">{insumo.aplicacoes}x</span></div>
-                                    <div className="flex flex-col"><span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Área Alvo</span><span className="font-semibold text-gray-700">{insumo.areaAplicacao?.toLocaleString('pt-BR')} ha</span></div>
-                                    <div className="flex flex-col border-l border-gray-200 pl-4 md:pl-8"><span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-0.5">Qtd Sistemática</span><span className="font-black text-gray-800">{insumo.qtdCalculada?.toLocaleString('pt-BR', {maximumFractionDigits: 2})} {insumo.unidade}</span></div>
+                                    <div className="flex flex-col"><span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Área Alvo</span><span className={`font-semibold ${insumo.needsReview ? 'text-orange-600' : 'text-gray-700'}`}>{insumo.areaAplicacao?.toLocaleString('pt-BR')} ha</span></div>
+                                    <div className="flex flex-col border-l border-gray-200 pl-4 md:pl-8"><span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-0.5">Qtd Sistemática</span><span className={`font-black ${insumo.needsReview ? 'text-orange-600' : 'text-gray-800'}`}>{insumo.qtdCalculada?.toLocaleString('pt-BR', {maximumFractionDigits: 2})} {insumo.unidade}</span></div>
                                   </>
                                 )}
                               </div>
@@ -719,8 +736,9 @@ export default function PlanejarInsumos() {
                     <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 space-y-4">
                       <div className="grid grid-cols-3 gap-3">
                         <div>
+                          {/* AGORA A ÁREA PODE SER EDITADA PELO USUÁRIO NA HORA DA IMPORTAÇÃO */}
                           <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 text-blue-700">Área (ha) Atual</label>
-                          <input type="number" value={areaAplicacao} readOnly className="w-full bg-blue-100/50 border border-blue-200 rounded-lg p-2.5 font-bold text-gray-800 outline-none text-center cursor-not-allowed" title="A área já foi ajustada para o talhão atual" />
+                          <input type="number" step="0.01" value={areaAplicacao} onChange={e => setAreaAplicacao(e.target.value)} className="w-full bg-white border border-blue-200 rounded-lg p-2.5 font-bold text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none text-center shadow-sm" required />
                         </div>
                         <div>
                           <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Dose/ha</label>

@@ -1,6 +1,6 @@
 // src/components/Sidebar.jsx
-import React, { useState } from 'react';
-import { Home, Database, CalendarDays, Calculator, FileText, PackageCheck, Leaf, Menu, X, LogOut, Map, Sprout, ChevronLeft, ChevronRight,FlaskConical } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Home, Database, CalendarDays, Calculator, FileText, PackageCheck, Leaf, Menu, X, LogOut, Map, Sprout, ChevronLeft, ChevronRight, FlaskConical } from 'lucide-react';
 
 // Importações do Firebase para o Logout
 import { signOut } from 'firebase/auth';
@@ -9,6 +9,12 @@ import { auth } from '../services/firebase';
 export default function Sidebar({ activeTab, setActiveTab }) {
   const [isOpen, setIsOpen] = useState(false); // Controle do Mobile
   const [isCollapsed, setIsCollapsed] = useState(false); // Controle do Desktop (Ocultar textos)
+  // Escuta o clique do ícone da Folha no Header para abrir no Mobile
+  useEffect(() => {
+    const handleOpenSidebar = () => setIsOpen(true);
+    window.addEventListener('open-sidebar', handleOpenSidebar);
+    return () => window.removeEventListener('open-sidebar', handleOpenSidebar);
+  }, []);
 
   // Aqui alteramos o menu para refletir a nova arquitetura
   const menuItems = [
@@ -16,7 +22,7 @@ export default function Sidebar({ activeTab, setActiveTab }) {
     { id: 'cadastros', label: 'Cadastros', icon: Database },
     { id: 'planejar_culturas', label: 'Planejar Culturas', icon: Map },
     { id: 'planejar_variedades', label: 'Planejar Variedades', icon: Sprout },
-    { id: 'planejar_insumos', label: 'Planejar Insumos', icon: FlaskConical }, // NOVA LINHA!
+    { id: 'planejar_insumos', label: 'Planejar Insumos', icon: FlaskConical }, 
     { id: 'cotacoes', label: 'Cotações', icon: Calculator },
     { id: 'pedidos', label: 'Pedidos', icon: FileText },
     { id: 'recebimentos', label: 'Notas', icon: PackageCheck },
@@ -40,12 +46,6 @@ export default function Sidebar({ activeTab, setActiveTab }) {
 
   return (
     <>
-      {/* Área clicável invisível no Topo Esquerdo (Substitui o botão Hamburger) */}
-      <div 
-        onClick={() => setIsOpen(true)} 
-        className="lg:hidden fixed top-0 left-0 w-20 h-16 z-[60] cursor-pointer"
-        title="Abrir Menu Lateral"
-      />
       {/* Fundo Escurecido (Overlay) quando o menu está aberto no Mobile */}
       {isOpen && (
         <div 
@@ -111,12 +111,6 @@ export default function Sidebar({ activeTab, setActiveTab }) {
                 <span className={`font-medium flex-1 truncate transition-opacity duration-300 ${isActive ? 'font-bold' : ''} ${isCollapsed ? 'lg:hidden' : 'block'}`}>
                   {item.label}
                 </span>
-
-                {isCollapsed && (
-                  <div className="absolute left-14 bg-gray-800 text-white text-xs font-bold py-1.5 px-3 rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 shadow-lg">
-                    {item.label}
-                  </div>
-                )}
               </button>
             );
           })}

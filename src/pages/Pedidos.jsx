@@ -105,12 +105,12 @@ export default function Pedidos() {
   const formatQtd = (val) => Number(val).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 min-h-screen pt-12 lg:pt-0 pb-32">
+    <div className="flex flex-col h-full bg-gray-50 min-h-screen pb-32">
       <Header title="Ordens de Compra" />
       
       <main className="px-4 lg:px-8 py-4 animate-fade-in">
         
-        <div className="sticky top-0 z-40 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 bg-gray-50/80 backdrop-blur-md p-4 rounded-b-2xl shadow-sm border-b border-gray-200/50 -mx-4 px-4 lg:-mx-8 lg:px-8">
+        <div className="relative z-30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 bg-gray-50/80 backdrop-blur-md p-4 rounded-b-2xl shadow-sm border-b border-gray-200/50 -mx-4 px-4 lg:-mx-8 lg:px-8">
           <div className="flex items-center gap-3">
             <div className="bg-emerald-600 p-2.5 rounded-xl text-white shadow-sm"><FileText size={24} /></div>
             <div>

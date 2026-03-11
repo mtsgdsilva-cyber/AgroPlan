@@ -2,12 +2,11 @@
 import React, { useState, useRef } from 'react';
 import { useAgro } from '../contexts/AgroContext';
 import { useModal } from '../contexts/ModalContext';
-// IMPORTANTE: Adicionada a função calcSeedsPerHa
 import { generateId, calcSeedsPerHa } from '../utils/helpers';
 import { Map, Leaf, Sprout, Calculator, UploadCloud, Plus, Database, Trash, Package, Square, CheckSquare, Edit2, Save, X } from 'lucide-react';
-import Header from '../components/Header';
 import Card from '../components/Card';
 import * as xlsx from 'xlsx';
+
 const PRESET_COLORS = [
   '#16a34a', '#22c55e', '#84cc16', '#4ade80', // Verdes (Plantação)
   '#0891b2', '#06b6d4', '#3b82f6', '#6366f1', // Azuis (Água/Céu)
@@ -21,21 +20,21 @@ export default function Cadastros() {
     culturas, setCulturas, 
     variedades, setVariedades, 
     taxasPlantio, setTaxasPlantio,
-    embalagens, setEmbalagens // NOVO
+    embalagens, setEmbalagens
   } = useAgro();
-  const { showAlert, showConfirm } = useModal(); // NOVO AQUI
+  const { showAlert, showConfirm } = useModal(); 
 
   const [activeSubTab, setActiveSubTab] = useState('talhoes');
-// ==========================================
-// ESTADOS E LÓGICAS: TALHÕES
+
   // ==========================================
-  const fileInputRef = useRef(null); // NOVO: Referência para o input de Excel
+  // ESTADOS E LÓGICAS: TALHÕES
+  // ==========================================
+  const fileInputRef = useRef(null); 
   
   const [talhaoNome, setTalhaoNome] = useState('');
   const [talhaoArea, setTalhaoArea] = useState('');
   const [talhaoRetiro, setTalhaoRetiro] = useState('');
 
-  // NOVO: Controle de Edição e Exclusão de Talhões
   const [editingTalhaoId, setEditingTalhaoId] = useState(null);
   const [editTalhaoAreaVal, setEditTalhaoAreaVal] = useState('');
 
@@ -64,7 +63,6 @@ export default function Cadastros() {
     setEditTalhaoAreaVal('');
   };
   
-
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -86,10 +84,8 @@ export default function Cadastros() {
         }));
 
         setTalhoes(prev => [...prev, ...novosTalhoes]);
-        // ALERTA DE SUCESSO MODERNO AQUI:
         showAlert("Importação Concluída", `${novosTalhoes.length} talhões importados com sucesso!`, "success");
       } catch (error) {
-        // ALERTA DE ERRO MODERNO AQUI:
         showAlert("Erro na Importação", "Erro ao importar a planilha. Verifique se as colunas estão exatas: RETIRO, TALHÃO e ÁREA.", "danger");
       }
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -108,19 +104,46 @@ export default function Cadastros() {
   // ESTADOS E LÓGICAS: CULTURAS
   // ==========================================
   const [culturaNome, setCulturaNome] = useState('');
-  const [culturaCor, setCulturaCor] = useState('#10b981'); // Cor padrão (Verde Esmeralda)
-  const [colorPickerCulturaId, setColorPickerCulturaId] = useState(null); // Controla o modal de cor
+  const [culturaCor, setCulturaCor] = useState('#10b981'); 
+  const [colorPickerCulturaId, setColorPickerCulturaId] = useState(null); 
+  
+  // NOVO: Controle de Edição de Culturas
+  const [editingCulturaId, setEditingCulturaId] = useState(null);
+  const [editCulturaNomeVal, setEditCulturaNomeVal] = useState('');
 
   const handleAddCultura = (e) => {
     e.preventDefault();
     if (!culturaNome.trim()) return;
     setCulturas([...culturas, { id: generateId(), nome: culturaNome, cor: culturaCor }]);
     setCulturaNome('');
-    setCulturaCor('#10b981'); // Reseta a cor após cadastrar
+    setCulturaCor('#10b981'); 
   };
 
   const handleChangeCorCultura = (id, novaCor) => {
     setCulturas(culturas.map(c => c.id === id ? { ...c, cor: novaCor } : c));
+  };
+
+  const handleDeleteCultura = (id) => {
+    showConfirm("Excluir Cultura", "Tem certeza que deseja excluir esta cultura? As variedades amarradas a ela podem ficar órfãs.", () => {
+      setCulturas(culturas.filter(c => c.id !== id));
+    }, "danger");
+  };
+
+  const startEditCultura = (cultura) => {
+    setEditingCulturaId(cultura.id);
+    setEditCulturaNomeVal(cultura.nome);
+  };
+
+  const confirmEditCultura = (id) => {
+    if (!editCulturaNomeVal.trim()) return showAlert("Atenção", "O nome não pode ser vazio.", "warning");
+    setCulturas(culturas.map(c => c.id === id ? { ...c, nome: editCulturaNomeVal } : c));
+    setEditingCulturaId(null);
+    setEditCulturaNomeVal('');
+  };
+
+  const cancelEditCultura = () => {
+    setEditingCulturaId(null);
+    setEditCulturaNomeVal('');
   };
 
   // ==========================================
@@ -128,9 +151,9 @@ export default function Cadastros() {
   // ==========================================
   const [varCulturaId, setVarCulturaId] = useState('');
   const [varNome, setVarNome] = useState('');
-  const [varCor, setVarCor] = useState('#3b82f6'); // Cor padrão (Azul)
+  const [varCor, setVarCor] = useState('#3b82f6'); 
   const [colorPickerVarId, setColorPickerVarId] = useState(null);
-  // NOVO: Modo de Seleção e Embalagens para Variedades
+  
   const [isVarSelectionMode, setIsVarSelectionMode] = useState(false);
   const [varsSelecionadas, setVarsSelecionadas] = useState([]);
   const [isModalEmbVarOpen, setIsModalEmbVarOpen] = useState(false);
@@ -138,7 +161,6 @@ export default function Cadastros() {
 
   const handleToggleVar = (id) => setVarsSelecionadas(prev => prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id]);
   
-  // NOVO: Selecionar e Desmarcar Todas as Sementes
   const handleSelectAllVars = () => {
     if (varsSelecionadas.length === variedades.length && variedades.length > 0) {
       setVarsSelecionadas([]); 
@@ -147,14 +169,12 @@ export default function Cadastros() {
     }
   };
 
-  // ATUALIZADO: Permite a exclusão do vínculo escolhendo "nenhuma"
   const confirmarEmbalagemVar = () => {
     if (!embSelecionadaId) return showAlert("Atenção", "Selecione uma embalagem ou escolha 'Não definida'.", "danger");
     setVariedades(variedades.map(v => varsSelecionadas.includes(v.id) ? { ...v, embalagemId: embSelecionadaId === 'nenhuma' ? '' : embSelecionadaId } : v));
     setVarsSelecionadas([]); setEmbSelecionadaId(''); setIsModalEmbVarOpen(false); setIsVarSelectionMode(false);
   };
 
-  // NOVO: Controle para esconder/mostrar formulários na aba Taxas
   const [showEmbForm, setShowEmbForm] = useState(false);
   const [showTaxaForm, setShowTaxaForm] = useState(false);
 
@@ -178,7 +198,6 @@ export default function Cadastros() {
     );
   };
 
-  // NOVO: Controle de Edição de Variedades
   const [editingVarId, setEditingVarId] = useState(null);
   const [editVarNomeVal, setEditVarNomeVal] = useState('');
 
@@ -200,13 +219,9 @@ export default function Cadastros() {
     setEditingVarId(null);
     setEditVarNomeVal('');
   };
-  const handleSelectColor = (id, novaCor) => {
-    setVariedades(variedades.map(v => v.id === id ? { ...v, cor: novaCor } : v));
-    // Se quiser que o modal feche logo após clicar na cor pré-definida:
-    setColorPickerTarget(null);
-  };
+
   // ==========================================
-  // ESTADOS E LÓGICAS: EMBALAGENS (NOVO)
+  // ESTADOS E LÓGICAS: EMBALAGENS
   // ==========================================
   const [embNome, setEmbNome] = useState('');
   const [embTipo, setEmbTipo] = useState('saca');
@@ -232,7 +247,7 @@ export default function Cadastros() {
     });
   };
 
- // ==========================================
+  // ==========================================
   // ESTADOS E LÓGICAS: GABARITOS DE TAXAS
   // ==========================================
   const [taxaNome, setTaxaNome] = useState('');
@@ -256,12 +271,8 @@ export default function Cadastros() {
       sementesPorMetro: taxaTipo === 'sementes_metro' ? parseFloat(taxaSementesPorMetro) : null
     }]);
 
-    setTaxaNome(''); 
-    setTaxaKgPorHa(''); 
-    setTaxaSementesPorHa(''); 
-    setTaxaEspacamento(''); 
-    setTaxaSementesPorMetro('');
-    setShowTaxaForm(false); // Fecha o form ao salvar
+    setTaxaNome(''); setTaxaKgPorHa(''); setTaxaSementesPorHa(''); setTaxaEspacamento(''); setTaxaSementesPorMetro('');
+    setShowTaxaForm(false); 
   };
 
   const handleDeleteTaxa = (id) => {
@@ -270,40 +281,55 @@ export default function Cadastros() {
     });
   };
 
-  // ==========================================
-  // COMPONENTES DE RENDERIZAÇÃO DAS ABAS
-  // ==========================================
-  const renderTabButtons = () => (
-    <div className="flex overflow-x-auto gap-2 mb-6 pb-2 hide-scrollbar border-b border-gray-200">
-      {[
-        { id: 'talhoes', label: 'Talhões', icon: Map },
-        { id: 'culturas', label: 'Culturas', icon: Leaf },
-        { id: 'variedades', label: 'Variedades', icon: Sprout },
-        { id: 'taxas', label: 'Taxas (Gabaritos)', icon: Calculator } // Nome atualizado
-      ].map(tab => {
-        const Icon = tab.icon;
-        const isActive = activeSubTab === tab.id;
-        return (
-          <button
-            key={tab.id}
-            onClick={() => setActiveSubTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-t-xl font-medium text-sm transition-all whitespace-nowrap ${
-              isActive ? 'bg-green-600 text-white shadow-md' : 'bg-white text-gray-500 hover:bg-gray-100'
-            }`}
-          >
-            <Icon size={16} /> {tab.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-
   return (
     <div className="flex flex-col h-full bg-gray-50 min-h-screen">
-      <Header title="Gestão de Cadastros Base" />
       
-      <main className="px-6 py-4">
-        {renderTabButtons()}
+      {/* CABEÇALHO CUSTOMIZADO COM AS ABAS EMBUTIDAS */}
+      <header className="bg-white/95 backdrop-blur-md px-4 py-3 md:px-6 md:py-4 sticky top-0 z-[60] shadow-sm rounded-b-3xl mb-6 flex items-center gap-3 border-b border-gray-100 transition-all">
+        
+        {/* Botão de abrir o menu lateral */}
+        <div 
+          className="bg-green-100 p-2.5 rounded-xl cursor-pointer hover:bg-green-200 transition-colors shrink-0 flex items-center justify-center"
+          onClick={() => window.dispatchEvent(new CustomEvent('open-sidebar'))}
+          title="Abrir Menu Lateral"
+        >
+          <Sprout className="text-green-600" size={24} />
+        </div>
+
+        {/* Divisória sutil */}
+        <div className="w-px h-8 bg-gray-200 shrink-0 hidden md:block mx-1"></div>
+
+        {/* Grupo de Abas */}
+        <nav className="flex items-center gap-1.5 md:gap-3 overflow-x-auto hide-scrollbar flex-1 pb-1 md:pb-0">
+          {[
+            { id: 'talhoes', label: 'Talhões', icon: Map },
+            { id: 'culturas', label: 'Culturas', icon: Leaf },
+            { id: 'variedades', label: 'Variedades', icon: Sprout },
+            { id: 'taxas', label: 'Taxas', icon: Calculator } 
+          ].map(tab => {
+            const Icon = tab.icon;
+            const isActive = activeSubTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveSubTab(tab.id)}
+                title={tab.label}
+                className={`flex items-center justify-center gap-2 p-2.5 md:px-5 md:py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap shrink-0 ${
+                  isActive 
+                    ? 'bg-green-600 text-white shadow-md' 
+                    : 'bg-transparent text-gray-500 hover:bg-gray-100'
+                }`}
+              >
+                <Icon size={20} className={isActive ? "text-white" : "text-gray-400"} /> 
+                {/* O texto some no mobile e aparece no desktop */}
+                <span className="hidden md:block">{tab.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+      </header>
+      
+      <main className="px-4 lg:px-8 py-4 animate-fade-in pb-32">
 
         {/* --- ABA: TALHÕES --- */}
         {activeSubTab === 'talhoes' && (
@@ -337,7 +363,6 @@ export default function Cadastros() {
                   <div>
                     <span className="font-bold text-gray-800 text-lg block leading-none mb-1">{talhao.nome}</span>
                     
-                    {/* Se estiver editando, mostra o Input. Se não, mostra o texto. */}
                     {editingTalhaoId === talhao.id ? (
                       <div className="flex items-center gap-2 mt-2">
                         <input
@@ -364,22 +389,13 @@ export default function Cadastros() {
                 <div className="flex items-center gap-2">
                   {editingTalhaoId === talhao.id ? (
                     <>
-                      <button onClick={() => confirmEditTalhao(talhao.id)} className="p-2 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-colors flex items-center gap-1 font-bold text-xs" title="Salvar">
-                        <Save size={16} /> Salvar
-                      </button>
-                      <button onClick={cancelEditTalhao} className="p-2 text-gray-500 bg-gray-100 hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors" title="Cancelar">
-                        <X size={16} />
-                      </button>
+                      <button onClick={() => confirmEditTalhao(talhao.id)} className="p-2 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-colors flex items-center gap-1 font-bold text-xs" title="Salvar"><Save size={16} /> Salvar</button>
+                      <button onClick={cancelEditTalhao} className="p-2 text-gray-500 bg-gray-100 hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors" title="Cancelar"><X size={16} /></button>
                     </>
                   ) : (
                     <>
-                      {/* Estes botões só aparecem ao passar o rato (hover) ou no mobile */}
-                      <button onClick={() => startEditTalhao(talhao)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all opacity-100 lg:opacity-0 lg:group-hover:opacity-100" title="Editar Área">
-                        <Edit2 size={18} />
-                      </button>
-                      <button onClick={() => handleDeleteTalhao(talhao.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-100 lg:opacity-0 lg:group-hover:opacity-100" title="Excluir Talhão">
-                        <Trash size={18} />
-                      </button>
+                      <button onClick={() => startEditTalhao(talhao)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all opacity-100 lg:opacity-0 lg:group-hover:opacity-100" title="Editar Área"><Edit2 size={18} /></button>
+                      <button onClick={() => handleDeleteTalhao(talhao.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-100 lg:opacity-0 lg:group-hover:opacity-100" title="Excluir Talhão"><Trash size={18} /></button>
                     </>
                   )}
                 </div>
@@ -422,15 +438,38 @@ export default function Cadastros() {
               {culturas.map(c => (
                 <div key={c.id} className="relative">
                   <Card className="!mb-0 flex items-center justify-between py-3 px-4 group hover:border-gray-200 transition-colors shadow-sm">
-                    {/* VOLTOU O ÍCONE E A FONTE NORMAL (SEM MAIÚSCULAS) */}
+                    
                     <div className="flex items-center gap-3">
                       <Leaf size={20} style={{ color: c.cor || '#10b981' }} />
-                      <span className="font-semibold text-gray-800">{c.nome}</span>
+                      
+                      {/* MODO EDIÇÃO CULTURA */}
+                      {editingCulturaId === c.id ? (
+                        <div className="flex items-center gap-2 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="text"
+                            value={editCulturaNomeVal}
+                            onChange={(e) => setEditCulturaNomeVal(e.target.value)}
+                            className="w-48 p-1 border-2 border-green-400 bg-green-50 rounded-lg text-sm font-bold text-gray-800 outline-none"
+                            autoFocus
+                          />
+                          <button onClick={() => confirmEditCultura(c.id)} className="text-green-600 hover:bg-green-50 p-1 rounded transition-all"><Save size={16} /></button>
+                          <button onClick={cancelEditCultura} className="text-gray-400 hover:bg-red-50 p-1 rounded transition-all"><X size={16} /></button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-gray-800">{c.nome}</span>
+                          {/* BOTÕES DE EDIÇÃO/EXCLUSÃO (Aparecem no Hover) */}
+                          <div className="flex gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => startEditCultura(c)} className="text-gray-300 hover:text-blue-600 p-1 rounded transition-all" title="Editar Cultura"><Edit2 size={14} /></button>
+                            <button onClick={() => handleDeleteCultura(c.id)} className="text-gray-300 hover:text-red-500 p-1 rounded transition-all" title="Excluir Cultura"><Trash size={14} /></button>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <button 
                       onClick={() => setColorPickerCulturaId(colorPickerCulturaId === c.id ? null : c.id)}
-                      className="w-6 h-6 rounded-full border border-gray-200 shadow-sm transition-transform hover:scale-110"
+                      className="w-6 h-6 rounded-full border border-gray-200 shadow-sm transition-transform hover:scale-110 shrink-0"
                       style={{ backgroundColor: c.cor || '#10b981' }}
                       title="Mudar cor"
                     />
@@ -546,8 +585,15 @@ export default function Cadastros() {
                         return (
                           <div key={v.id} onClick={() => isVarSelectionMode && handleToggleVar(v.id)} className={`relative flex items-center justify-between py-2 px-3 rounded-lg transition-colors group border ${isVarSelectionMode ? 'cursor-pointer hover:bg-gray-50' : ''} ${isSelected ? 'bg-blue-50/50 border-blue-200' : 'border-transparent hover:border-gray-100'}`}>
                             
-                            {/* LADO ESQUERDO: Ícone da Plantinha e Nome da Variedade */}
+                            {/* LADO ESQUERDO: Ícone da Plantinha e Nome da Variedade com Lápis/Lixeira */}
                             <div className="flex items-center gap-3">
+                              {/* CHECKBOX QUANDO MODO SELEÇÃO ESTÁ ATIVO */}
+                              {isVarSelectionMode && (
+                                <div className="shrink-0 mr-1">
+                                  {isSelected ? <CheckSquare className="text-blue-500" size={18}/> : <Square className="text-gray-300" size={18}/>}
+                                </div>
+                              )}
+                              
                               <Sprout className="text-green-500 shrink-0" size={16} />
 
                               {editingVarId === v.id ? (
@@ -559,16 +605,27 @@ export default function Cadastros() {
                                     className="w-48 p-1 border-2 border-green-400 bg-green-50 rounded-lg text-sm font-bold text-green-900 outline-none"
                                     autoFocus
                                   />
+                                  <button onClick={() => confirmEditVariedade(v.id)} className="text-green-600 hover:bg-green-50 p-1 rounded transition-all"><Save size={16} /></button>
+                                  <button onClick={cancelEditVariedade} className="text-gray-400 hover:bg-red-50 p-1 rounded transition-all"><X size={16} /></button>
                                 </div>
                               ) : (
-                                <span className="font-medium text-gray-700">{v.nome}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-gray-700">{v.nome}</span>
+                                  
+                                  {/* LÁPIS E LIXEIRA DA SEMENTE (HOVER) */}
+                                  {!isVarSelectionMode && (
+                                    <div className="flex gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                                      <button onClick={(e) => { e.stopPropagation(); startEditVariedade(v); }} className="text-gray-300 hover:text-blue-600 p-1 rounded transition-all" title="Editar Nome"><Edit2 size={14} /></button>
+                                      <button onClick={(e) => { e.stopPropagation(); handleDeleteVariedade(v.id); }} className="text-gray-300 hover:text-red-500 p-1 rounded transition-all" title="Excluir Semente"><Trash size={14} /></button>
+                                    </div>
+                                  )}
+                                </div>
                               )}
                             </div>
 
-                            {/* LADO DIREITO: Bolinha de Cor, Embalagem e Botões */}
+                            {/* LADO DIREITO: Bolinha de Cor e Embalagem */}
                             <div className="flex items-center gap-4">
                               
-                              {/* BOLINHA DE COR MOVIDA PARA CÁ */}
                               <button 
                                 onClick={(e) => { e.stopPropagation(); setColorPickerVarId(colorPickerVarId === v.id ? null : v.id); }}
                                 className="w-5 h-5 rounded-full border border-gray-200 shadow-sm transition-transform hover:scale-110 shrink-0"
@@ -576,30 +633,23 @@ export default function Cadastros() {
                                 title="Mudar cor da semente"
                               />
 
-                              {embalagemDaVar ? (
-                                <div className="hidden md:flex items-center gap-2">
-                                  <Package className="text-green-500" size={16} />
-                                  <span className="font-medium text-gray-700 text-sm">{embalagemDaVar.nome}</span>
-                                </div>
-                              ) : (
-                                <span className="text-[10px] italic text-gray-400 hidden md:block">Sem embalagem</span>
-                              )}
-
+                              {/* EMBALAGEM E BOTÃO DE TROCAR EMBALAGEM (PACOTE) */}
                               <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                {editingVarId === v.id ? (
-                                  <>
-                                    <button onClick={() => confirmEditVariedade(v.id)} className="text-green-600 hover:bg-green-50 p-1 rounded transition-all"><Save size={16} /></button>
-                                    <button onClick={cancelEditVariedade} className="text-gray-400 hover:bg-red-50 p-1 rounded transition-all"><X size={16} /></button>
-                                  </>
+                                {embalagemDaVar ? (
+                                  <div className="hidden md:flex items-center gap-2">
+                                    <span className="font-medium text-gray-700 text-sm">{embalagemDaVar.nome}</span>
+                                  </div>
                                 ) : (
-                                  <>
-                                    {!isVarSelectionMode && (
-                                      <button onClick={() => startEditVariedade(v)} className="text-gray-300 hover:text-blue-600 p-1 rounded transition-all opacity-100 lg:opacity-0 lg:group-hover:opacity-100"><Edit2 size={16} /></button>
-                                    )}
-                                    <button onClick={() => handleDeleteVariedade(v.id)} className="text-gray-300 hover:text-red-500 p-1 rounded transition-all opacity-100 lg:opacity-0 lg:group-hover:opacity-100"><Trash size={16} /></button>
-                                  </>
+                                  <span className="text-[10px] italic text-gray-400 hidden md:block">Sem embalagem</span>
+                                )}
+                                
+                                {!isVarSelectionMode && (
+                                  <button onClick={() => { setVarsSelecionadas([v.id]); setEmbSelecionadaId(v.embalagemId || ''); setIsModalEmbVarOpen(true); }} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded transition-all" title="Trocar Embalagem">
+                                    <Package size={16} />
+                                  </button>
                                 )}
                               </div>
+
                             </div>
 
                             {/* MINI COLOR PICKER FLUTUANTE (Ajustado para abrir à direita) */}
@@ -641,7 +691,7 @@ export default function Cadastros() {
                 <Package size={20} className="text-blue-600" /> Presets de Embalagens
               </h2>
               <button onClick={() => setShowEmbForm(!showEmbForm)} className="text-sm font-bold text-blue-700 bg-blue-50 px-4 py-2 rounded-xl border border-blue-200 shadow-sm hover:bg-blue-100 transition-colors flex items-center gap-2">
-                {showEmbForm ? <X size={16} /> : <Plus size={16} />} {showEmbForm ? 'Cancelar' : 'Cadastrar Embalagem'}
+                {showEmbForm ? <X size={16} /> : <Plus size={16} />} <span className="hidden md:block">{showEmbForm ? 'Cancelar' : 'Cadastrar Embalagem'}</span>
               </button>
             </div>
 
@@ -687,7 +737,7 @@ export default function Cadastros() {
                 <Calculator size={20} className="text-orange-500" /> Presets de Taxas
               </h2>
               <button onClick={() => setShowTaxaForm(!showTaxaForm)} className="text-sm font-bold text-orange-700 bg-orange-50 px-4 py-2 rounded-xl border border-orange-200 shadow-sm hover:bg-orange-100 transition-colors flex items-center gap-2">
-                {showTaxaForm ? <X size={16} /> : <Plus size={16} />} {showTaxaForm ? 'Cancelar' : 'Cadastrar Taxa'}
+                {showTaxaForm ? <X size={16} /> : <Plus size={16} />} <span className="hidden md:block">{showTaxaForm ? 'Cancelar' : 'Cadastrar Taxa'}</span>
               </button>
             </div>
 
