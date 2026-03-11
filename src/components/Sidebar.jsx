@@ -37,7 +37,7 @@ export default function Sidebar({ activeTab, setActiveTab }) {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      // O useEffect no App.jsx vai detetar isto automaticamente e redirecionar para o Login
+      // O useEffect no App.jsx vai detetar isto de forma automatica e redirecionar para o Login
     } catch (error) {
       console.error("Erro ao sair da conta:", error);
       alert("Houve um erro ao tentar sair. Tente novamente.");
