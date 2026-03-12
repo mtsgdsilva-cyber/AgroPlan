@@ -2,11 +2,14 @@
 import React, { useState } from 'react';
 import { useProcurement } from '../contexts/ProcurementContext';
 import { generateId, formatCurrency } from '../utils/helpers';
-import { Calculator, Plus, ArrowLeft, CheckCircle2, Circle, AlertCircle, Building2, Package, Tag, FileText, X, Pencil, Minimize2, Maximize2, ChevronDown, ChevronRight, Trash, Download, CheckSquare, Square } from 'lucide-react';
+import { Calculator, Plus, ArrowLeft, CheckCircle2, Circle, AlertCircle, Building2, Package, Tag, FileText, X, Pencil, Minimize2, Maximize2, ChevronDown, ChevronRight, Trash, Download, CheckSquare, Square, Link } from 'lucide-react';
 import Header from '../components/Header';
 import { useModal } from '../contexts/ModalContext';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+
+// NOVA IMPORTAÇÃO: Precisamos da autenticação para pegar o ID do usuário logado na hora de gerar o link
+import { auth } from '../services/firebase';
 
 export default function Cotacoes() {
   const { cotacoes, setCotacoes, setPedidos, defaultCompany } = useProcurement();
@@ -513,6 +516,19 @@ export default function Cotacoes() {
 
               <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto hide-scrollbar">
                 
+                {/* BOTÃO MÁGICO DE LINK PARA O FORNECEDOR */}
+                <button 
+                  onClick={() => {
+                    const link = `${window.location.origin}/fornecedor/${auth.currentUser.uid}/${cotacaoAtiva.id}`;
+                    navigator.clipboard.writeText(link);
+                    showAlert("Link Copiado!", "O link da cotação foi copiado. Cole no WhatsApp do fornecedor.", "success");
+                  }} 
+                  className="bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-700 p-2 md:px-4 md:py-2 rounded-xl shadow-sm transition-colors flex items-center justify-center gap-1.5 shrink-0" 
+                  title="Copiar Link para Fornecedor"
+                >
+                  <Link size={16} /> <span className="hidden md:block font-bold text-xs">Link WhatsApp</span>
+                </button>
+
                 {cotacaoAtiva.itens.length > 0 && (
                   <button onClick={(e) => handleExportarPDFLista(cotacaoAtiva.titulo, e)} className="bg-white border border-blue-200 hover:bg-blue-50 text-blue-600 p-2 md:px-4 md:py-2 rounded-xl shadow-sm transition-colors flex items-center justify-center gap-1.5 shrink-0" title="Exportar para Compras">
                     <Download size={16} /> <span className="hidden md:block font-bold text-xs">PDF Cotação</span>
@@ -648,16 +664,16 @@ export default function Cotacoes() {
               </div>
             )}
 
-            {/* ESPELHO OCULTO DO PDF (INDIVIDUAL) */}
+         {/* ESPELHO OCULTO DO PDF (PARA EXPORTAÇÃO) - COM CATEGORIAS E ASSINATURAS NO RODAPÉ */}
             <div id="relatorio-lista-cotacao" style={{ 
               display: 'none', 
               backgroundColor: 'white', 
               padding: '40px', 
               width: '800px', 
-              minHeight: '1120px',
+              minHeight: '1120px', // Altura mínima de uma A4 proporcional
               color: 'black', 
               fontFamily: 'sans-serif',
-              flexDirection: 'column'
+              flexDirection: 'column' // Transforma a folha num layout Flex em Coluna
             }}>
                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '3px solid #1f2937', paddingBottom: '16px', marginBottom: '24px' }}>
                  <div>
@@ -670,7 +686,8 @@ export default function Cotacoes() {
                  </div>
                </div>
                
-               <div style={{ flex: '1 0 auto' }}>
+               {/* Rendereiza uma tabela para cada Categoria */}
+               <div style={{ flex: '1 0 auto' }}> {/* Esta div diz para o conteúdo crescer e ocupar o espaço se tiver muitos itens */}
                  {Object.entries(itensAgrupadosPorCategoria).map(([cat, itensDaCategoria]) => (
                    <div key={cat} style={{ marginBottom: '24px' }}>
                      <h3 style={{ fontSize: '14px', fontWeight: 'bold', color: '#374151', borderBottom: '1px solid #e5e7eb', paddingBottom: '4px', marginBottom: '12px', textTransform: 'uppercase' }}>
@@ -700,6 +717,7 @@ export default function Cotacoes() {
                  ))}
                </div>
 
+               {/* BLOCO DE ASSINATURAS COLADO NO RODAPÉ */}
                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '40px', paddingLeft: '20px', paddingRight: '20px' }}>
                  <div style={{ width: '40%', textAlign: 'center' }}>
                    <div style={{ borderTop: '1px solid #374151', marginBottom: '8px' }}></div>
@@ -716,82 +734,6 @@ export default function Cotacoes() {
 
           </div>
         )}
-
-       {/* ESPELHO OCULTO DO PDF (UNIFICADO GERAL) */}
-        {currentView === 'list' && (
-          <div id="relatorio-global-cotacao" style={{ 
-            display: 'none', 
-            backgroundColor: 'white', 
-            padding: '40px', 
-            width: '800px', 
-            minHeight: '1120px',
-            color: 'black', 
-            fontFamily: 'sans-serif',
-            flexDirection: 'column'
-          }}>
-             <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '3px solid #1f2937', paddingBottom: '16px', marginBottom: '24px' }}>
-               <div>
-                 <h1 style={{ fontSize: '24px', fontWeight: '900', color: '#065f46', margin: '0 0 4px 0', textTransform: 'uppercase' }}>{defaultCompany || 'Larangeira Mendes S/A'}</h1>
-                 <p style={{ fontSize: '16px', fontWeight: 'bold', color: '#4b5563', margin: 0 }}>Relação de Insumos para Cotação</p>
-                 <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#6b7280', margin: '4px 0 0 0', maxWidth: '400px' }}>Ref: {titulosSelecionados}</p>
-               </div>
-               <div style={{ textAlign: 'right' }}>
-                 <p style={{ fontSize: '14px', color: '#4b5563', margin: 0 }}>Emissão: {new Date().toLocaleDateString('pt-BR')}</p>
-               </div>
-             </div>
-             
-             <div style={{ flex: '1 0 auto' }}>
-               {Object.entries(itensAgrupadosGlobal).map(([cat, itensDict]) => {
-                 const itensArr = Object.values(itensDict);
-                 if (itensArr.length === 0) return null;
-                 return (
-                   <div key={cat} style={{ marginBottom: '24px' }}>
-                     <h3 style={{ fontSize: '14px', fontWeight: 'bold', color: '#374151', borderBottom: '1px solid #e5e7eb', paddingBottom: '4px', marginBottom: '12px', textTransform: 'uppercase' }}>
-                       Lista de {cat}
-                     </h3>
-                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                       <thead>
-                         <tr style={{ backgroundColor: '#f3f4f6', borderBottom: '2px solid #d1d5db', color: '#374151' }}>
-                           <th style={{ padding: '10px 8px', textAlign: 'center', width: '12%' }}>QTD</th>
-                           <th style={{ padding: '10px 8px', textAlign: 'center', width: '8%' }}>UN</th>
-                           <th style={{ padding: '10px 8px', textAlign: 'left', width: '40%' }}>DESCRIÇÃO</th>
-                           <th style={{ padding: '10px 8px', textAlign: 'left', width: '40%' }}>OBSERVAÇÃO</th>
-                         </tr>
-                       </thead>
-                       <tbody>
-                         {itensArr.map((i, idx) => {
-                           const obsArr = [...i.observacoes];
-                           return (
-                             <tr key={idx} style={{ borderBottom: '1px solid #f3f4f6', color: '#1f2937' }}>
-                               <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 'bold' }}>{formatQtd(i.quantidadeTotal)}</td>
-                               <td style={{ padding: '10px 8px', textAlign: 'center' }}>{i.unidade}</td>
-                               <td style={{ padding: '10px 8px', fontWeight: 'bold' }}>{i.nomeExibicao}</td>
-                               <td style={{ padding: '10px 8px', color: 'black' }}>{obsArr.length > 0 ? obsArr.join(' | ') : '-'}</td>
-                             </tr>
-                           );
-                         })}
-                       </tbody>
-                     </table>
-                   </div>
-                 )
-               })}
-             </div>
-
-             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '40px', paddingLeft: '20px', paddingRight: '20px' }}>
-               <div style={{ width: '40%', textAlign: 'center' }}>
-                 <div style={{ borderTop: '1px solid #374151', marginBottom: '8px' }}></div>
-                 <p style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', color: '#374151' }}>Elaborado por</p>
-                 <p style={{ margin: 0, fontSize: '12px', color: '#6b7280' }}>Setor ADM Agrícola / Compras</p>
-               </div>
-               <div style={{ width: '40%', textAlign: 'center' }}>
-                 <div style={{ borderTop: '1px solid #374151', marginBottom: '8px' }}></div>
-                 <p style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', color: '#374151' }}>Aprovado por</p>
-                 <p style={{ margin: 0, fontSize: '12px', color: '#6b7280' }}>Diretoria / Gerência</p>
-               </div>
-             </div>
-          </div>
-        )}
-
       </main>
 
       {/* MODAL: SELECIONAR COTAÇÕES PARA UNIFICAR */}

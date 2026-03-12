@@ -19,10 +19,13 @@ import Home from './pages/Home';
 import Cadastros from './pages/Cadastros';
 import PlanejarCulturas from './pages/PlanejarCulturas';
 import PlanejarVariedades from './pages/PlanejarVariedades';
-import PlanejarInsumos from './pages/PlanejarInsumos'; // AQUI ESTÁ A IMPORTAÇÃO
+import PlanejarInsumos from './pages/PlanejarInsumos';
 import Cotacoes from './pages/Cotacoes';
 import Pedidos from './pages/Pedidos';
 import Recebimentos from './pages/Recebimentos';
+
+// NOVA IMPORTAÇÃO: A tela do Fornecedor (Criaremos no próximo passo)
+import InterfaceFornecedor from './pages/InterfaceFornecedor';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
@@ -42,14 +45,28 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Função Switch com as rotas
+ // =======================================================================
+  // O "BYPASS" DO FORNECEDOR (Ignora Login e Sidebar)
+  // URL Esperada: seusite.com/fornecedor/ID_DO_USUARIO/ID_DA_COTACAO
+  // =======================================================================
+  const currentPath = window.location.pathname;
+  if (currentPath.startsWith('/fornecedor/')) {
+    const parts = currentPath.split('/'); 
+    const userId = parts[2];     // Pega a primeira chave
+    const cotacaoId = parts[3];  // Pega a segunda chave
+    
+    // Mostra a tela passando as duas informações cruciais
+    return <InterfaceFornecedor userId={userId} cotacaoId={cotacaoId} />;
+  }
+
+  // Função Switch com as rotas internas
   const renderPage = () => {
     switch (activeTab) {
       case 'home': return <Home />;
       case 'cadastros': return <Cadastros />;
       case 'planejar_culturas': return <PlanejarCulturas />;
       case 'planejar_variedades': return <PlanejarVariedades />;
-      case 'planejar_insumos': return <PlanejarInsumos />; // AQUI ESTÁ A ROTA FUNCIONANDO!
+      case 'planejar_insumos': return <PlanejarInsumos />; 
       case 'cotacoes': return <Cotacoes />;
       case 'pedidos': return <Pedidos />;
       case 'recebimentos': return <Recebimentos />;
@@ -66,12 +83,12 @@ export default function App() {
     );
   }
 
-  // 2. TELA DE LOGIN
+  // 2. TELA DE LOGIN (Para funcionários)
   if (!user) {
     return <Login />;
   }
 
-  // 3. APLICAÇÃO PRINCIPAL
+  // 3. APLICAÇÃO PRINCIPAL (Para funcionários logados)
   return (
     <ModalProvider>
       <AgroProvider>
