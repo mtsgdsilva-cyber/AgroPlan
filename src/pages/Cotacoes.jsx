@@ -2,13 +2,11 @@
 import React, { useState } from 'react';
 import { useProcurement } from '../contexts/ProcurementContext';
 import { generateId, formatCurrency } from '../utils/helpers';
-import { Calculator, Plus, ArrowLeft, CheckCircle2, Circle, AlertCircle, Building2, Package, Tag, FileText, X, Pencil, Minimize2, Maximize2, ChevronDown, ChevronRight, Trash, Download, CheckSquare, Square, Link } from 'lucide-react';
+import { Calculator, Plus, ArrowLeft, CheckCircle2, Circle, AlertCircle, Building2, Package, Tag, FileText, X, Pencil, Minimize2, Maximize2, ChevronDown, ChevronRight, Trash, Download, CheckSquare, Square, Link, Clock } from 'lucide-react';
 import Header from '../components/Header';
 import { useModal } from '../contexts/ModalContext';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-
-// NOVA IMPORTAÇÃO: Precisamos da autenticação para pegar o ID do usuário logado na hora de gerar o link
 import { auth } from '../services/firebase';
 
 export default function Cotacoes() {
@@ -53,7 +51,7 @@ export default function Cotacoes() {
   const [agrupamentoNumero, setAgrupamentoNumero] = useState('unico'); 
   const [numeroManualBase, setNumeroManualBase] = useState('');
 
-  // ESTADOS DO PDF UNIFICADO (NOVO)
+  // ESTADOS DO PDF UNIFICADO
   const [isGlobalPdfModalOpen, setIsGlobalPdfModalOpen] = useState(false);
   const [selectedCotacoesForPdf, setSelectedCotacoesForPdf] = useState([]);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
@@ -67,7 +65,7 @@ export default function Cotacoes() {
   };
 
   const startEditCotacao = (cotacao, e) => {
-    e.stopPropagation(); // Impede de abrir a cotação ao clicar no botão
+    e.stopPropagation(); 
     setEditingCotacaoId(cotacao.id);
     setEditCotacaoTitulo(cotacao.titulo);
   };
@@ -94,9 +92,6 @@ export default function Cotacoes() {
     }, "danger");
   };
 
-  // ==========================================
-  // FUNÇÕES DO NOVO MODAL DE ITENS (ADD / EDIT)
-  // ==========================================
   const abrirModalNovoItem = () => {
     setEditingItemId(null);
     setItemCategoria(''); setItemNome(''); setItemQtd(''); setItemUnidade('UN'); setItemObs('');
@@ -141,9 +136,6 @@ export default function Cotacoes() {
     setIsItemModalOpen(false);
   };
 
-  // ==========================================
-  // FUNÇÕES DE OFERTA
-  // ==========================================
   const fecharModalOferta = () => {
     setOfertaFornecedor(''); setOfertaPreco(''); setOfertaPagamento(''); setOfertaEntrega(''); setOfertaObs('');
     setEditingOfferId(null); setIsOfferModalOpen(false);
@@ -195,31 +187,19 @@ export default function Cotacoes() {
     })} : c));
   };
 
-  // ==========================================
-  // EXPORTAÇÃO DE COTAÇÃO EM PDF (INDIVIDUAL E UNIFICADO)
-  // ==========================================
-  
-  // Função que seleciona quais cotações vão pro relatório unificado
   const handleToggleCotacaoForPdf = (id) => {
     setSelectedCotacoesForPdf(prev => prev.includes(id) ? prev.filter(cId => cId !== id) : [...prev, id]);
   };
 
   const handleExportarPDFGlobal = async () => {
     if (selectedCotacoesForPdf.length === 0) return showAlert("Atenção", "Selecione pelo menos uma cotação.", "warning");
-
     setIsGeneratingPdf(true); 
-    
     setTimeout(async () => {
       const elemento = document.getElementById('relatorio-global-cotacao');
-      if (!elemento) {
-        setIsGeneratingPdf(false);
-        return;
-      }
-
+      if (!elemento) { setIsGeneratingPdf(false); return; }
       elemento.style.display = 'flex';
       elemento.style.position = 'absolute';
       elemento.style.left = '-9999px';
-
       try {
         const canvas = await html2canvas(elemento, { scale: 2, useCORS: true });
         const imgData = canvas.toDataURL('image/png');
@@ -227,9 +207,7 @@ export default function Cotacoes() {
         const imgProps = pdf.getImageProperties(imgData);
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-        
         pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        
         pdf.save(`Cotacao_Compras_Unificada.pdf`);
         showAlert("Sucesso!", "Relatório unificado exportado com sucesso.", "success");
         setIsGlobalPdfModalOpen(false);
@@ -249,11 +227,9 @@ export default function Cotacoes() {
     if (e) e.preventDefault();
     const elemento = document.getElementById('relatorio-lista-cotacao');
     if (!elemento) return;
-
     elemento.style.display = 'flex';
     elemento.style.position = 'absolute';
     elemento.style.left = '-9999px';
-
     try {
       const canvas = await html2canvas(elemento, { scale: 2, useCORS: true });
       const imgData = canvas.toDataURL('image/png');
@@ -261,9 +237,7 @@ export default function Cotacoes() {
       const imgProps = pdf.getImageProperties(imgData);
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      
       pdf.save(`Lista_Cotacao_${tituloCotacaoOriginal.replace(/\s+/g, '_')}.pdf`);
       showAlert("Sucesso!", "Lista exportada com sucesso.", "success");
     } catch (error) {
@@ -275,9 +249,6 @@ export default function Cotacoes() {
     }
   };
 
-  // ==========================================
-  // PEDIDOS E COMPRAS
-  // ==========================================
   const confirmarGeracaoPedidos = () => {
     const cotacao = cotacoes.find(c => c.id === selectedCotacaoId);
     const itensFechados = cotacao.itens.filter(i => i.status === 'Fechado' && i.ofertaVencedoraId);
@@ -357,7 +328,6 @@ export default function Cotacoes() {
 
   const formatQtd = (val) => Number(val).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
-  // Agrupamento para o PDF de Cotação Individual
   const itensAgrupadosPorCategoria = cotacaoAtiva ? cotacaoAtiva.itens.reduce((acc, item) => {
     const cat = item.categoria || 'Outros Insumos';
     if (!acc[cat]) acc[cat] = [];
@@ -365,7 +335,6 @@ export default function Cotacoes() {
     return acc;
   }, {}) : {};
 
-  // Agrupamento Normalizado para o PDF Unificado
   const cotacoesSelecionadasObj = cotacoes?.filter(c => selectedCotacoesForPdf.includes(c.id)) || [];
   const titulosSelecionados = cotacoesSelecionadasObj.map(c => c.titulo).join(', ');
 
@@ -374,8 +343,6 @@ export default function Cotacoes() {
     cotacao.itens.forEach(item => {
       const cat = item.categoria || 'Outros Insumos';
       if (!itensAgrupadosGlobal[cat]) itensAgrupadosGlobal[cat] = {};
-
-      // Mágica da Normalização: Remove acentos, tira espaços e deixa tudo minúsculo
       const normName = item.nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '');
       const key = `${normName}_${item.unidade.toLowerCase()}`;
 
@@ -396,8 +363,6 @@ export default function Cotacoes() {
 
   return (
     <div className="flex flex-col h-full bg-gray-50 min-h-screen pb-32">
-      
-      {/* O Header Global só aparece na listagem inicial */}
       {currentView === 'list' && <Header title="Cotações" />}
       
       <main className="px-4 lg:px-8 py-4 animate-fade-in">
@@ -431,8 +396,6 @@ export default function Cotacoes() {
                       <div className="flex items-start gap-4">
                         <div className="bg-emerald-50 p-3 rounded-xl text-emerald-600 shrink-0"><FileText size={24} /></div>
                         <div>
-                          
-                          {/* CAMPO DE EDIÇÃO OU TÍTULO NORMAL */}
                           {editingCotacaoId === cot.id ? (
                             <div className="flex items-center gap-2 mb-1" onClick={(e) => e.stopPropagation()}>
                               <input
@@ -448,7 +411,6 @@ export default function Cotacoes() {
                           ) : (
                             <h3 className="font-bold text-gray-800 text-lg mb-1">{cot.titulo}</h3>
                           )}
-
                           <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-widest">
                             <span>{new Date(cot.data).toLocaleDateString('pt-BR')}</span>
                             <span className="w-1.5 h-1.5 rounded-full bg-gray-300"></span>
@@ -461,8 +423,6 @@ export default function Cotacoes() {
                           <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Status de Fechamento</span>
                           <span className={`text-sm font-black ${itensFechados === cot.itens.length && cot.itens.length > 0 ? 'text-emerald-600' : 'text-orange-500'}`}>{itensFechados} / {cot.itens.length} Aprovados</span>
                         </div>
-                        
-                        {/* BOTÕES DE EDITAR E EXCLUIR */}
                         <div className="flex items-center gap-1 ml-2">
                           {editingCotacaoId !== cot.id && (
                             <button onClick={(e) => startEditCotacao(cot, e)} className="p-2.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-colors border border-transparent hover:border-blue-100" title="Editar Nome da Cotação">
@@ -473,7 +433,6 @@ export default function Cotacoes() {
                             <Trash size={20} />
                           </button>
                         </div>
-
                       </div>
                     </div>
                   );
@@ -485,11 +444,9 @@ export default function Cotacoes() {
 
         {currentView === 'create' && (
           <div className="max-w-xl mx-auto animate-fade-in">
-            {/* MINI CABEÇALHO PARA CRIAÇÃO */}
             <div className="sticky top-0 z-[60] bg-white/95 backdrop-blur-md -mt-4 -mx-4 pt-6 px-4 py-4 lg:-mx-8 lg:-mt-4 lg:px-8 lg:pt-6 mb-6 border-b border-gray-100 shadow-sm rounded-b-3xl flex items-center transition-all">
                <button onClick={() => setCurrentView('list')} className="flex items-center gap-2 text-gray-500 hover:text-emerald-600 font-bold"><ArrowLeft size={20} /> Voltar para Cotações</button>
             </div>
-
             <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-200">
               <h2 className="text-xl font-black text-gray-800 mb-6 flex items-center gap-2"><Calculator className="text-emerald-600" /> Iniciar Nova Cotação</h2>
               <form onSubmit={handleCriarCotacao} className="space-y-4">
@@ -503,8 +460,6 @@ export default function Cotacoes() {
 
         {currentView === 'detail' && cotacaoAtiva && (
           <div className="animate-fade-in">
-            
-            {/* O NOVO REI DO TOPO: O sub-cabeçalho de Cotação */}
             <div className="sticky top-0 z-[60] flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 bg-white/95 backdrop-blur-md p-4 pt-6 lg:py-5 lg:pt-6 rounded-b-3xl shadow-sm border-b border-gray-100 -mx-4 -mt-4 px-4 lg:-mx-8 lg:-mt-4 lg:px-8 transition-all">
               <div className="flex items-center gap-3">
                 <button onClick={() => setCurrentView('list')} className="text-gray-400 hover:text-emerald-600 transition-colors p-2 bg-gray-50 hover:bg-emerald-50 rounded-xl shadow-sm border border-gray-100 shrink-0"><ArrowLeft size={20} /></button>
@@ -516,7 +471,6 @@ export default function Cotacoes() {
 
               <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto hide-scrollbar">
                 
-                {/* BOTÃO MÁGICO DE LINK PARA O FORNECEDOR */}
                 <button 
                   onClick={() => {
                     const link = `${window.location.origin}/fornecedor/${auth.currentUser.uid}/${cotacaoAtiva.id}`;
@@ -589,7 +543,7 @@ export default function Cotacoes() {
                         </div>
                         <div className="flex items-center gap-3">
                           <span className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest ${item.status === 'Fechado' ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>{item.status}</span>
-                          <button onClick={(e) => abrirModalNovaOferta(item.id, e)} className="text-emerald-600 hover:bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1.5 bg-white"><Plus size={16}/> Oferta</button>
+                          <button onClick={(e) => abrirModalNovaOferta(item.id, e)} className="text-emerald-600 hover:bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1.5 bg-white"><Plus size={16}/> Oferta Manual</button>
                         </div>
                       </div>
                       
@@ -603,12 +557,27 @@ export default function Cotacoes() {
                                   <div key={oferta.id} onClick={() => handleToggleVencedor(item.id, oferta.id)} className={`flex flex-col md:flex-row md:items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${isVencedora ? 'border-emerald-500 bg-emerald-50/50 shadow-sm ring-1 ring-emerald-500' : 'border-gray-100 hover:border-gray-300'}`}>
                                     <div className="shrink-0 hidden md:flex">{isVencedora ? <CheckCircle2 size={24} className="text-emerald-600" /> : <Circle size={24} className="text-gray-300" />}</div>
                                     <div className="flex-1 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                                      <div className="flex items-center gap-3">
-                                        <div className="shrink-0 md:hidden">{isVencedora ? <CheckCircle2 size={20} className="text-emerald-600" /> : <Circle size={20} className="text-gray-300" />}</div>
+                                      <div className="flex items-start md:items-center gap-3">
+                                        <div className="shrink-0 md:hidden mt-1 md:mt-0">{isVencedora ? <CheckCircle2 size={20} className="text-emerald-600" /> : <Circle size={20} className="text-gray-300" />}</div>
                                         <div>
-                                          <h4 className={`font-bold text-base ${isVencedora ? 'text-emerald-900' : 'text-gray-800'}`}>{oferta.fornecedor}</h4>
-                                          <div className="flex flex-wrap gap-2 mt-1 text-[10px] font-bold text-gray-500 uppercase">
-                                            <span className="bg-gray-100 px-2 py-0.5 rounded-md border border-gray-200">{oferta.condicaoPagamento || 'À vista'}</span>
+                                          {/* NOME DA EMPRESA E DO VENDEDOR (NOVO) */}
+                                          <h4 className={`font-bold text-base ${isVencedora ? 'text-emerald-900' : 'text-gray-800'}`}>
+                                            {oferta.fornecedor} {oferta.vendedor && <span className="text-xs font-semibold text-gray-500 ml-1">({oferta.vendedor})</span>}
+                                          </h4>
+                                          
+                                          {/* PRODUTO ALTERNATIVO (NOVO) */}
+                                          {oferta.produtoAlternativo && (
+                                            <p className="text-xs font-bold text-orange-600 mt-1">Ofertado: {oferta.produtoAlternativo}</p>
+                                          )}
+
+                                          <div className="flex flex-wrap items-center gap-2 mt-1 text-[10px] font-bold text-gray-500 uppercase">
+                                            {/* DATA DA RESPOSTA (NOVO) */}
+                                            {oferta.dataResposta && (
+                                              <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-200 flex items-center gap-1">
+                                                <Clock size={10}/> {new Date(oferta.dataResposta).toLocaleDateString('pt-BR')}
+                                              </span>
+                                            )}
+                                            {oferta.condicaoPagamento && <span className="bg-gray-100 px-2 py-0.5 rounded-md border border-gray-200">{oferta.condicaoPagamento}</span>}
                                             {index === 0 && <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-md border border-green-200">Menor Preço</span>}
                                           </div>
                                         </div>
@@ -618,7 +587,7 @@ export default function Cotacoes() {
                                           <span className="text-xs font-semibold text-gray-500">{formatCurrency(oferta.precoUnitario)} / un</span>
                                           <span className={`text-lg font-black ${isVencedora ? 'text-emerald-700' : 'text-gray-800'}`}>{formatCurrency(item.quantidade * oferta.precoUnitario)}</span>
                                         </div>
-                                        <button onClick={(e) => abrirModalEdicaoOferta(item.id, oferta, e)} className="p-2.5 bg-gray-50 hover:bg-blue-100 text-gray-400 hover:text-blue-600 rounded-xl border border-gray-200 transition-colors" title="Editar Oferta"><Pencil size={16} /></button>
+                                        <button onClick={(e) => abrirModalEdicaoOferta(item.id, oferta, e)} className="p-2.5 bg-gray-50 hover:bg-blue-100 text-gray-400 hover:text-blue-600 rounded-xl border border-gray-200 transition-colors" title="Editar Oferta Manualmente"><Pencil size={16} /></button>
                                       </div>
                                     </div>
                                   </div>
@@ -664,16 +633,15 @@ export default function Cotacoes() {
               </div>
             )}
 
-         {/* ESPELHO OCULTO DO PDF (PARA EXPORTAÇÃO) - COM CATEGORIAS E ASSINATURAS NO RODAPÉ */}
             <div id="relatorio-lista-cotacao" style={{ 
               display: 'none', 
               backgroundColor: 'white', 
               padding: '40px', 
               width: '800px', 
-              minHeight: '1120px', // Altura mínima de uma A4 proporcional
+              minHeight: '1120px',
               color: 'black', 
               fontFamily: 'sans-serif',
-              flexDirection: 'column' // Transforma a folha num layout Flex em Coluna
+              flexDirection: 'column'
             }}>
                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '3px solid #1f2937', paddingBottom: '16px', marginBottom: '24px' }}>
                  <div>
@@ -686,8 +654,7 @@ export default function Cotacoes() {
                  </div>
                </div>
                
-               {/* Rendereiza uma tabela para cada Categoria */}
-               <div style={{ flex: '1 0 auto' }}> {/* Esta div diz para o conteúdo crescer e ocupar o espaço se tiver muitos itens */}
+               <div style={{ flex: '1 0 auto' }}>
                  {Object.entries(itensAgrupadosPorCategoria).map(([cat, itensDaCategoria]) => (
                    <div key={cat} style={{ marginBottom: '24px' }}>
                      <h3 style={{ fontSize: '14px', fontWeight: 'bold', color: '#374151', borderBottom: '1px solid #e5e7eb', paddingBottom: '4px', marginBottom: '12px', textTransform: 'uppercase' }}>
@@ -717,7 +684,6 @@ export default function Cotacoes() {
                  ))}
                </div>
 
-               {/* BLOCO DE ASSINATURAS COLADO NO RODAPÉ */}
                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '40px', paddingLeft: '20px', paddingRight: '20px' }}>
                  <div style={{ width: '40%', textAlign: 'center' }}>
                    <div style={{ borderTop: '1px solid #374151', marginBottom: '8px' }}></div>
@@ -736,7 +702,6 @@ export default function Cotacoes() {
         )}
       </main>
 
-      {/* MODAL: SELECIONAR COTAÇÕES PARA UNIFICAR */}
       {isGlobalPdfModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-md shadow-2xl">
@@ -764,7 +729,6 @@ export default function Cotacoes() {
         </div>
       )}
 
-      {/* MODAL: GERAR PEDIDOS */}
       {isGerarModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-md shadow-2xl">
@@ -810,7 +774,6 @@ export default function Cotacoes() {
         </div>
       )}
 
-      {/* MODAL: NOVO / EDITAR ITEM COM CATEGORIA */}
       {isItemModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-md shadow-2xl">
@@ -863,7 +826,6 @@ export default function Cotacoes() {
         </div>
       )}
 
-      {/* MODAL: REGISTRAR / EDITAR OFERTA */}
       {isOfferModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-md shadow-2xl">
@@ -879,12 +841,11 @@ export default function Cotacoes() {
               </div>
               <div><label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Entrega Prevista</label><input type="text" value={ofertaEntrega} onChange={e => setOfertaEntrega(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3.5 font-semibold text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none" /></div>
               <div><label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Observação</label><input type="text" value={ofertaObs} onChange={e => setOfertaObs(e.target.value)} className="w-full bg-orange-50 border border-orange-200 rounded-xl p-3.5 font-semibold text-orange-800 focus:ring-2 focus:ring-orange-500 outline-none" /></div>
-              <button type="submit" className="w-full mt-6 bg-blue-600 text-white font-black py-4 rounded-xl hover:bg-blue-700 shadow-md transition-all">{editingOfferId ? 'Salvar Alterações' : 'Salvar Oferta'}</button>
+              <button type="submit" className="w-full mt-6 bg-blue-600 text-white font-black py-4 rounded-xl hover:bg-blue-700 shadow-md transition-all">{editingOfferId ? 'Salvar Alterações' : 'Salvar Oferta Manual'}</button>
             </form>
           </div>
         </div>
       )}
-
     </div>
   );
 }
