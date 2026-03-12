@@ -38,10 +38,42 @@ export default function Cadastros() {
   const [editingTalhaoId, setEditingTalhaoId] = useState(null);
   const [editTalhaoAreaVal, setEditTalhaoAreaVal] = useState('');
 
+  // Estados de seleção em massa de talhões
+  const [isTalhaoSelectionMode, setIsTalhaoSelectionMode] = useState(false);
+  const [talhoesSelecionados, setTalhoesSelecionados] = useState([]);
+
   const handleDeleteTalhao = (id) => {
     showConfirm("Excluir Talhão", "Atenção: Excluir este talhão pode afetar os Planos de Safra que já o utilizam. Tem certeza que deseja excluir?", () => {
       setTalhoes(talhoes.filter(t => t.id !== id));
     });
+  };
+
+  // Lógica de seleção em massa
+  const handleToggleTalhao = (id) => {
+    setTalhoesSelecionados(prev => 
+      prev.includes(id) ? prev.filter(tId => tId !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllTalhoes = () => {
+    if (talhoesSelecionados.length === talhoes.length && talhoes.length > 0) {
+      setTalhoesSelecionados([]);
+    } else {
+      setTalhoesSelecionados(talhoes.map(t => t.id));
+    }
+  };
+
+  const handleDeleteSelectedTalhoes = () => {
+    showConfirm(
+      "Excluir Selecionados", 
+      `Tem certeza que deseja excluir ${talhoesSelecionados.length} talhões de uma vez?`, 
+      () => {
+        setTalhoes(talhoes.filter(t => !talhoesSelecionados.includes(t.id)));
+        setTalhoesSelecionados([]);
+        setIsTalhaoSelectionMode(false);
+      }, 
+      "danger"
+    );
   };
 
   const startEditTalhao = (talhao) => {
@@ -107,7 +139,6 @@ export default function Cadastros() {
   const [culturaCor, setCulturaCor] = useState('#10b981'); 
   const [colorPickerCulturaId, setColorPickerCulturaId] = useState(null); 
   
-  // NOVO: Controle de Edição de Culturas
   const [editingCulturaId, setEditingCulturaId] = useState(null);
   const [editCulturaNomeVal, setEditCulturaNomeVal] = useState('');
 
@@ -335,9 +366,41 @@ export default function Cadastros() {
         {activeSubTab === 'talhoes' && (
           <div className="animate-fade-in">
             <input type="file" accept=".xlsx, .xls" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
-            <button onClick={() => fileInputRef.current.click()} className="w-full mb-6 bg-white border-2 border-dashed border-green-300 hover:border-green-500 hover:bg-green-50 text-green-700 font-medium py-4 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm">
-              <UploadCloud size={24} /> Importar Planilha (RETIRO, TALHÃO, ÁREA)
-            </button>
+            
+            {/* BOTOES DE IMPORTAÇÃO E CABEÇALHO DE SELEÇÃO */}
+            <div className="flex flex-col md:flex-row gap-3 mb-6">
+              <button onClick={() => fileInputRef.current.click()} className="flex-1 bg-white border-2 border-dashed border-green-300 hover:border-green-500 hover:bg-green-50 text-green-700 font-medium py-4 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm">
+                <UploadCloud size={24} /> Importar Planilha (RETIRO, TALHÃO, ÁREA)
+              </button>
+
+              {/* BOTÃO PARA ATIVAR SELEÇÃO EM MASSA */}
+              {!isTalhaoSelectionMode ? (
+                <button 
+                  onClick={() => setIsTalhaoSelectionMode(true)} 
+                  className="bg-white border border-gray-200 text-gray-600 font-bold px-6 py-4 rounded-xl hover:bg-gray-50 flex items-center justify-center gap-2 shadow-sm"
+                >
+                  <CheckSquare size={20} /> Selecionar
+                </button>
+              ) : (
+                <div className="flex gap-2 animate-fade-in w-full md:w-auto">
+                  <button onClick={handleSelectAllTalhoes} className="bg-blue-50 text-blue-700 border border-blue-200 font-bold px-4 py-4 rounded-xl text-sm flex-1 md:flex-none whitespace-nowrap">
+                    {talhoesSelecionados.length === talhoes.length && talhoes.length > 0 ? 'Desmarcar Todos' : 'Selecionar Todos'}
+                  </button>
+                  <button 
+                    onClick={handleDeleteSelectedTalhoes} 
+                    disabled={talhoesSelecionados.length === 0}
+                    className={`px-6 py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm transition-all flex-1 md:flex-none whitespace-nowrap ${
+                      talhoesSelecionados.length > 0 ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    <Trash size={18} /> Excluir ({talhoesSelecionados.length})
+                  </button>
+                  <button onClick={() => { setIsTalhaoSelectionMode(false); setTalhoesSelecionados([]); }} className="bg-white border border-gray-200 px-4 py-4 rounded-xl text-gray-500 hover:bg-red-50 hover:text-red-500 shadow-sm transition-colors">
+                    <X size={20} />
+                  </button>
+                </div>
+              )}
+            </div>
 
             <Card className="mb-6">
               <h2 className="text-md font-semibold text-gray-700 mb-4">Adicionar Manualmente</h2>
@@ -352,56 +415,77 @@ export default function Cadastros() {
             </Card>
 
             <div className="space-y-3">
-              {talhoes.map(talhao => (
-              <div key={talhao.id} className="flex justify-between items-center p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:border-emerald-200 transition-all mb-3 group">
-                
-                {/* INFORMAÇÕES DO TALHÃO OU MODO DE EDIÇÃO */}
-                <div className="flex items-center gap-4">
-                  <div className="bg-emerald-50 p-2 rounded-lg text-emerald-600">
-                    <Map size={20} />
-                  </div>
-                  <div>
-                    <span className="font-bold text-gray-800 text-lg block leading-none mb-1">{talhao.nome}</span>
+              {talhoes.map(talhao => {
+                const isSelected = talhoesSelecionados.includes(talhao.id);
+                return (
+                  <div 
+                    key={talhao.id} 
+                    onClick={() => isTalhaoSelectionMode && handleToggleTalhao(talhao.id)}
+                    className={`flex justify-between items-center p-4 rounded-xl border transition-all mb-3 group ${
+                      isTalhaoSelectionMode ? 'cursor-pointer' : ''
+                    } ${
+                      isSelected ? 'bg-blue-50 border-blue-300 shadow-md' : 'bg-white border-gray-100 shadow-sm hover:border-emerald-200'
+                    }`}
+                  >
                     
-                    {editingTalhaoId === talhao.id ? (
-                      <div className="flex items-center gap-2 mt-2">
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={editTalhaoAreaVal}
-                          onChange={(e) => setEditTalhaoAreaVal(e.target.value)}
-                          className="w-24 p-1.5 border-2 border-emerald-400 bg-emerald-50 rounded-lg text-sm font-black text-emerald-800 outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                          autoFocus
-                        />
-                        <span className="text-xs text-gray-500 font-bold uppercase">Hectares (ha)</span>
+                    {/* INFORMAÇÕES DO TALHÃO OU MODO DE EDIÇÃO */}
+                    <div className="flex items-center gap-4">
+                      {/* CHECKBOX VISÍVEL APENAS NO MODO SELEÇÃO */}
+                      {isTalhaoSelectionMode ? (
+                        <div className="shrink-0">
+                          {isSelected ? <CheckSquare className="text-blue-600" size={24}/> : <Square className="text-gray-300" size={24}/>}
+                        </div>
+                      ) : (
+                        <div className="bg-emerald-50 p-2 rounded-lg text-emerald-600">
+                          <Map size={20} />
+                        </div>
+                      )}
+                      
+                      <div>
+                        <span className="font-bold text-gray-800 text-lg block leading-none mb-1">{talhao.nome}</span>
+                        
+                        {editingTalhaoId === talhao.id ? (
+                          <div className="flex items-center gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editTalhaoAreaVal}
+                              onChange={(e) => setEditTalhaoAreaVal(e.target.value)}
+                              className="w-24 p-1.5 border-2 border-emerald-400 bg-emerald-50 rounded-lg text-sm font-black text-emerald-800 outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                              autoFocus
+                            />
+                            <span className="text-xs text-gray-500 font-bold uppercase">Hectares (ha)</span>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-gray-500 font-bold tracking-wide">
+                            {talhao.areaHa.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ha 
+                            <span className="mx-2 text-gray-300">•</span> 
+                            {talhao.retiro || 'Sem Retiro'}
+                          </span>
+                        )}
                       </div>
-                    ) : (
-                      <span className="text-sm text-gray-500 font-bold tracking-wide">
-                        {talhao.areaHa.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ha 
-                        <span className="mx-2 text-gray-300">•</span> 
-                        {talhao.retiro || 'Sem Retiro'}
-                      </span>
+                    </div>
+
+                    {/* BOTÕES DE AÇÃO - ESCONDIDOS NO MODO DE SELEÇÃO */}
+                    {!isTalhaoSelectionMode && (
+                      <div className="flex items-center gap-2">
+                        {editingTalhaoId === talhao.id ? (
+                          <>
+                            <button onClick={() => confirmEditTalhao(talhao.id)} className="p-2 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-colors flex items-center gap-1 font-bold text-xs" title="Salvar"><Save size={16} /> Salvar</button>
+                            <button onClick={cancelEditTalhao} className="p-2 text-gray-500 bg-gray-100 hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors" title="Cancelar"><X size={16} /></button>
+                          </>
+                        ) : (
+                          <>
+                            <button onClick={() => startEditTalhao(talhao)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all opacity-100 lg:opacity-0 lg:group-hover:opacity-100" title="Editar Área"><Edit2 size={18} /></button>
+                            <button onClick={() => handleDeleteTalhao(talhao.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-100 lg:opacity-0 lg:group-hover:opacity-100" title="Excluir Talhão"><Trash size={18} /></button>
+                          </>
+                        )}
+                      </div>
                     )}
+
                   </div>
-                </div>
-
-                {/* BOTÕES DE AÇÃO */}
-                <div className="flex items-center gap-2">
-                  {editingTalhaoId === talhao.id ? (
-                    <>
-                      <button onClick={() => confirmEditTalhao(talhao.id)} className="p-2 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-colors flex items-center gap-1 font-bold text-xs" title="Salvar"><Save size={16} /> Salvar</button>
-                      <button onClick={cancelEditTalhao} className="p-2 text-gray-500 bg-gray-100 hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors" title="Cancelar"><X size={16} /></button>
-                    </>
-                  ) : (
-                    <>
-                      <button onClick={() => startEditTalhao(talhao)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all opacity-100 lg:opacity-0 lg:group-hover:opacity-100" title="Editar Área"><Edit2 size={18} /></button>
-                      <button onClick={() => handleDeleteTalhao(talhao.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-100 lg:opacity-0 lg:group-hover:opacity-100" title="Excluir Talhão"><Trash size={18} /></button>
-                    </>
-                  )}
-                </div>
-
-              </div>
-            ))}
+                );
+              })}
             </div>
           </div>
         )}

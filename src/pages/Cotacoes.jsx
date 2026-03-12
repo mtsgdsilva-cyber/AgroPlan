@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useProcurement } from '../contexts/ProcurementContext';
 import { generateId, formatCurrency } from '../utils/helpers';
-import { Calculator, Plus, ArrowLeft, CheckCircle2, Circle, AlertCircle, Building2, Package, Tag, FileText, X, Pencil, Minimize2, Maximize2, ChevronDown, ChevronRight, Trash, Download } from 'lucide-react';
+import { Calculator, Plus, ArrowLeft, CheckCircle2, Circle, AlertCircle, Building2, Package, Tag, FileText, X, Pencil, Minimize2, Maximize2, ChevronDown, ChevronRight, Trash, Download, CheckSquare, Square } from 'lucide-react';
 import Header from '../components/Header';
 import { useModal } from '../contexts/ModalContext';
 import jsPDF from 'jspdf';
@@ -40,11 +40,20 @@ export default function Cotacoes() {
   const [ofertaEntrega, setOfertaEntrega] = useState('');
   const [ofertaObs, setOfertaObs] = useState('');
 
+  // ESTADOS DE EDIÇÃO DO TÍTULO DA COTAÇÃO
+  const [editingCotacaoId, setEditingCotacaoId] = useState(null);
+  const [editCotacaoTitulo, setEditCotacaoTitulo] = useState('');
+
   // ESTADOS DE GERAR PEDIDO
   const [isGerarModalOpen, setIsGerarModalOpen] = useState(false);
   const [tipoNumero, setTipoNumero] = useState('auto'); 
   const [agrupamentoNumero, setAgrupamentoNumero] = useState('unico'); 
   const [numeroManualBase, setNumeroManualBase] = useState('');
+
+  // ESTADOS DO PDF UNIFICADO (NOVO)
+  const [isGlobalPdfModalOpen, setIsGlobalPdfModalOpen] = useState(false);
+  const [selectedCotacoesForPdf, setSelectedCotacoesForPdf] = useState([]);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const handleCriarCotacao = (e) => {
     e.preventDefault();
@@ -52,6 +61,26 @@ export default function Cotacoes() {
     const novaCotacao = { id: generateId(), titulo: tituloCotacao, data: dataCotacao, status: 'Aberta', itens: [] };
     setCotacoes([...(cotacoes || []), novaCotacao]);
     setTituloCotacao(''); setSelectedCotacaoId(novaCotacao.id); setCurrentView('detail');
+  };
+
+  const startEditCotacao = (cotacao, e) => {
+    e.stopPropagation(); // Impede de abrir a cotação ao clicar no botão
+    setEditingCotacaoId(cotacao.id);
+    setEditCotacaoTitulo(cotacao.titulo);
+  };
+
+  const confirmEditCotacao = (id, e) => {
+    e.stopPropagation();
+    if (!editCotacaoTitulo.trim()) return showAlert("Atenção", "O título não pode ser vazio.", "warning");
+    setCotacoes(prev => prev.map(c => c.id === id ? { ...c, titulo: editCotacaoTitulo } : c));
+    setEditingCotacaoId(null);
+    setEditCotacaoTitulo('');
+  };
+
+  const cancelEditCotacao = (e) => {
+    e.stopPropagation();
+    setEditingCotacaoId(null);
+    setEditCotacaoTitulo('');
   };
 
   const handleDeleteCotacao = (id, titulo, e) => {
@@ -164,8 +193,55 @@ export default function Cotacoes() {
   };
 
   // ==========================================
-  // EXPORTAÇÃO DE COTAÇÃO EM PDF
+  // EXPORTAÇÃO DE COTAÇÃO EM PDF (INDIVIDUAL E UNIFICADO)
   // ==========================================
+  
+  // Função que seleciona quais cotações vão pro relatório unificado
+  const handleToggleCotacaoForPdf = (id) => {
+    setSelectedCotacoesForPdf(prev => prev.includes(id) ? prev.filter(cId => cId !== id) : [...prev, id]);
+  };
+
+  const handleExportarPDFGlobal = async () => {
+    if (selectedCotacoesForPdf.length === 0) return showAlert("Atenção", "Selecione pelo menos uma cotação.", "warning");
+
+    setIsGeneratingPdf(true); 
+    
+    setTimeout(async () => {
+      const elemento = document.getElementById('relatorio-global-cotacao');
+      if (!elemento) {
+        setIsGeneratingPdf(false);
+        return;
+      }
+
+      elemento.style.display = 'flex';
+      elemento.style.position = 'absolute';
+      elemento.style.left = '-9999px';
+
+      try {
+        const canvas = await html2canvas(elemento, { scale: 2, useCORS: true });
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4'); 
+        const imgProps = pdf.getImageProperties(imgData);
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        
+        pdf.save(`Cotacao_Compras_Unificada.pdf`);
+        showAlert("Sucesso!", "Relatório unificado exportado com sucesso.", "success");
+        setIsGlobalPdfModalOpen(false);
+        setSelectedCotacoesForPdf([]);
+      } catch (error) {
+        console.error(error);
+        showAlert("Erro", "Houve um problema ao gerar o PDF.", "danger");
+      } finally {
+        elemento.style.display = 'none';
+        elemento.style.position = 'static';
+        setIsGeneratingPdf(false);
+      }
+    }, 300);
+  };
+
   const handleExportarPDFLista = async (tituloCotacaoOriginal, e) => {
     if (e) e.preventDefault();
     const elemento = document.getElementById('relatorio-lista-cotacao');
@@ -183,11 +259,7 @@ export default function Cotacoes() {
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
       
-      if (pdfHeight > 297) {
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      } else {
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      }
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
       
       pdf.save(`Lista_Cotacao_${tituloCotacaoOriginal.replace(/\s+/g, '_')}.pdf`);
       showAlert("Sucesso!", "Lista exportada com sucesso.", "success");
@@ -282,13 +354,42 @@ export default function Cotacoes() {
 
   const formatQtd = (val) => Number(val).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
-  // Agrupamento para o PDF e Listagem
+  // Agrupamento para o PDF de Cotação Individual
   const itensAgrupadosPorCategoria = cotacaoAtiva ? cotacaoAtiva.itens.reduce((acc, item) => {
     const cat = item.categoria || 'Outros Insumos';
     if (!acc[cat]) acc[cat] = [];
     acc[cat].push(item);
     return acc;
   }, {}) : {};
+
+  // Agrupamento Normalizado para o PDF Unificado
+  const cotacoesSelecionadasObj = cotacoes?.filter(c => selectedCotacoesForPdf.includes(c.id)) || [];
+  const titulosSelecionados = cotacoesSelecionadasObj.map(c => c.titulo).join(', ');
+
+  const itensAgrupadosGlobal = {};
+  cotacoesSelecionadasObj.forEach(cotacao => {
+    cotacao.itens.forEach(item => {
+      const cat = item.categoria || 'Outros Insumos';
+      if (!itensAgrupadosGlobal[cat]) itensAgrupadosGlobal[cat] = {};
+
+      // Mágica da Normalização: Remove acentos, tira espaços e deixa tudo minúsculo
+      const normName = item.nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '');
+      const key = `${normName}_${item.unidade.toLowerCase()}`;
+
+      if (!itensAgrupadosGlobal[cat][key]) {
+        itensAgrupadosGlobal[cat][key] = {
+          nomeExibicao: item.nome, 
+          unidade: item.unidade,
+          quantidadeTotal: 0,
+          observacoes: new Set()
+        };
+      }
+      itensAgrupadosGlobal[cat][key].quantidadeTotal += Number(item.quantidade);
+      if (item.observacaoItem) {
+        itensAgrupadosGlobal[cat][key].observacoes.add(item.observacaoItem);
+      }
+    });
+  });
 
   return (
     <div className="flex flex-col h-full bg-gray-50 min-h-screen pb-32">
@@ -300,9 +401,18 @@ export default function Cotacoes() {
         
         {currentView === 'list' && (
           <div>
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
               <h2 className="text-xl font-black text-gray-800">Cotações em Andamento</h2>
-              <button onClick={() => setCurrentView('create')} className="text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-4 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-2"><Plus size={16} /> Nova Cotação</button>
+              <div className="flex gap-2 w-full md:w-auto">
+                {cotacoes?.length > 0 && (
+                  <button onClick={() => setIsGlobalPdfModalOpen(true)} className="flex-1 md:flex-none text-sm font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-4 py-2.5 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2">
+                    <Download size={16} /> Unificar PDF
+                  </button>
+                )}
+                <button onClick={() => setCurrentView('create')} className="flex-1 md:flex-none text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-4 py-2.5 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2">
+                  <Plus size={16} /> Nova Cotação
+                </button>
+              </div>
             </div>
             <div className="space-y-4">
               {(!cotacoes || cotacoes.length === 0) ? (
@@ -318,7 +428,24 @@ export default function Cotacoes() {
                       <div className="flex items-start gap-4">
                         <div className="bg-emerald-50 p-3 rounded-xl text-emerald-600 shrink-0"><FileText size={24} /></div>
                         <div>
-                          <h3 className="font-bold text-gray-800 text-lg mb-1">{cot.titulo}</h3>
+                          
+                          {/* CAMPO DE EDIÇÃO OU TÍTULO NORMAL */}
+                          {editingCotacaoId === cot.id ? (
+                            <div className="flex items-center gap-2 mb-1" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="text"
+                                value={editCotacaoTitulo}
+                                onChange={(e) => setEditCotacaoTitulo(e.target.value)}
+                                className="border-2 border-emerald-400 bg-emerald-50 rounded-lg px-2 py-1 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-emerald-500"
+                                autoFocus
+                              />
+                              <button onClick={(e) => confirmEditCotacao(cot.id, e)} className="text-emerald-600 hover:bg-emerald-200 p-1 rounded-md transition-colors"><CheckCircle2 size={18} /></button>
+                              <button onClick={cancelEditCotacao} className="text-gray-400 hover:bg-red-100 hover:text-red-500 p-1 rounded-md transition-colors"><X size={18} /></button>
+                            </div>
+                          ) : (
+                            <h3 className="font-bold text-gray-800 text-lg mb-1">{cot.titulo}</h3>
+                          )}
+
                           <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-widest">
                             <span>{new Date(cot.data).toLocaleDateString('pt-BR')}</span>
                             <span className="w-1.5 h-1.5 rounded-full bg-gray-300"></span>
@@ -331,9 +458,19 @@ export default function Cotacoes() {
                           <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Status de Fechamento</span>
                           <span className={`text-sm font-black ${itensFechados === cot.itens.length && cot.itens.length > 0 ? 'text-emerald-600' : 'text-orange-500'}`}>{itensFechados} / {cot.itens.length} Aprovados</span>
                         </div>
-                        <button onClick={(e) => handleDeleteCotacao(cot.id, cot.titulo, e)} className="p-2.5 ml-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors border border-transparent hover:border-red-100" title="Excluir Cotação">
-                          <Trash size={20} />
-                        </button>
+                        
+                        {/* BOTÕES DE EDITAR E EXCLUIR */}
+                        <div className="flex items-center gap-1 ml-2">
+                          {editingCotacaoId !== cot.id && (
+                            <button onClick={(e) => startEditCotacao(cot, e)} className="p-2.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-colors border border-transparent hover:border-blue-100" title="Editar Nome da Cotação">
+                              <Pencil size={20} />
+                            </button>
+                          )}
+                          <button onClick={(e) => handleDeleteCotacao(cot.id, cot.titulo, e)} className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors border border-transparent hover:border-red-100" title="Excluir Cotação">
+                            <Trash size={20} />
+                          </button>
+                        </div>
+
                       </div>
                     </div>
                   );
@@ -381,10 +518,6 @@ export default function Cotacoes() {
                     <Download size={16} /> <span className="hidden md:block font-bold text-xs">PDF Cotação</span>
                   </button>
                 )}
-
-                <button onClick={(e) => handleDeleteCotacao(cotacaoAtiva.id, cotacaoAtiva.titulo, e)} className="bg-white border border-gray-200 hover:bg-red-50 text-red-500 p-2 md:px-3 md:py-2 rounded-xl shadow-sm transition-colors flex items-center justify-center gap-1.5 shrink-0" title="Excluir Cotação">
-                  <Trash size={16} /> <span className="hidden md:block font-bold text-xs">Excluir</span>
-                </button>
                 
                 <div className="flex bg-gray-100 p-1 rounded-xl shrink-0">
                   <button onClick={() => setViewMode('produto')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'produto' ? 'bg-white text-gray-800 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700'}`}>Por Produto</button>
@@ -424,14 +557,14 @@ export default function Cotacoes() {
                           <div>
                             <div className="flex items-center gap-2">
                               <Tag size={16} className="text-emerald-600" />
-                              <h3 className="text-lg font-black text-gray-800">{item.nome}</h3>
+                              <h3 className="text-base font-semibold text-gray-800">{item.nome}</h3>
                               {item.categoria && <span className="px-2 py-0.5 bg-gray-200 text-gray-600 rounded text-[10px] uppercase tracking-widest font-bold">{item.categoria}</span>}
                               <button onClick={(e) => abrirModalEdicaoItem(item, e)} className="text-gray-300 hover:text-blue-500 hover:bg-blue-50 p-1 rounded-md transition-colors" title="Editar Produto">
                                 <Pencil size={14} />
                               </button>
                             </div>
-                            <p className="text-sm font-bold text-gray-500 mt-1">
-                              Qtd: <span className="text-gray-800">{formatQtd(item.quantidade)} {item.unidade}</span>
+                            <p className="text-sm font-medium text-gray-500 mt-1">
+                              Qtd: <span className="font-semibold text-gray-800">{formatQtd(item.quantidade)} {item.unidade}</span>
                             </p>
                             {item.observacaoItem && (
                               <p className="text-[10px] text-orange-600 font-semibold mt-1 uppercase tracking-wider">Obs: {item.observacaoItem}</p>
@@ -515,16 +648,16 @@ export default function Cotacoes() {
               </div>
             )}
 
-         {/* ESPELHO OCULTO DO PDF (PARA EXPORTAÇÃO) - COM CATEGORIAS E ASSINATURAS NO RODAPÉ */}
+            {/* ESPELHO OCULTO DO PDF (INDIVIDUAL) */}
             <div id="relatorio-lista-cotacao" style={{ 
               display: 'none', 
               backgroundColor: 'white', 
               padding: '40px', 
               width: '800px', 
-              minHeight: '1120px', // Altura mínima de uma A4 proporcional
+              minHeight: '1120px',
               color: 'black', 
               fontFamily: 'sans-serif',
-              flexDirection: 'column' // Transforma a folha num layout Flex em Coluna
+              flexDirection: 'column'
             }}>
                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '3px solid #1f2937', paddingBottom: '16px', marginBottom: '24px' }}>
                  <div>
@@ -537,8 +670,7 @@ export default function Cotacoes() {
                  </div>
                </div>
                
-               {/* Rendereiza uma tabela para cada Categoria */}
-               <div style={{ flex: '1 0 auto' }}> {/* Esta div diz para o conteúdo crescer e ocupar o espaço se tiver muitos itens */}
+               <div style={{ flex: '1 0 auto' }}>
                  {Object.entries(itensAgrupadosPorCategoria).map(([cat, itensDaCategoria]) => (
                    <div key={cat} style={{ marginBottom: '24px' }}>
                      <h3 style={{ fontSize: '14px', fontWeight: 'bold', color: '#374151', borderBottom: '1px solid #e5e7eb', paddingBottom: '4px', marginBottom: '12px', textTransform: 'uppercase' }}>
@@ -556,10 +688,10 @@ export default function Cotacoes() {
                        <tbody>
                          {itensDaCategoria.map((i, idx) => (
                            <tr key={idx} style={{ borderBottom: '1px solid #f3f4f6', color: '#1f2937' }}>
-                             <td style={{ padding: '10px 8px', textAlign: 'center' }}>{formatQtd(i.quantidade)}</td>
+                             <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 'bold' }}>{formatQtd(i.quantidade)}</td>
                              <td style={{ padding: '10px 8px', textAlign: 'center' }}>{i.unidade}</td>
                              <td style={{ padding: '10px 8px', fontWeight: 'bold' }}>{i.nome}</td>
-                             <td style={{ padding: '10px 8px', color: '#d97706' }}>{i.observacaoItem || '-'}</td>
+                             <td style={{ padding: '10px 8px', color: 'black' }}>{i.observacaoItem || '-'}</td>
                            </tr>
                          ))}
                        </tbody>
@@ -568,7 +700,6 @@ export default function Cotacoes() {
                  ))}
                </div>
 
-               {/* BLOCO DE ASSINATURAS COLADO NO RODAPÉ */}
                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '40px', paddingLeft: '20px', paddingRight: '20px' }}>
                  <div style={{ width: '40%', textAlign: 'center' }}>
                    <div style={{ borderTop: '1px solid #374151', marginBottom: '8px' }}></div>
@@ -585,7 +716,111 @@ export default function Cotacoes() {
 
           </div>
         )}
+
+       {/* ESPELHO OCULTO DO PDF (UNIFICADO GERAL) */}
+        {currentView === 'list' && (
+          <div id="relatorio-global-cotacao" style={{ 
+            display: 'none', 
+            backgroundColor: 'white', 
+            padding: '40px', 
+            width: '800px', 
+            minHeight: '1120px',
+            color: 'black', 
+            fontFamily: 'sans-serif',
+            flexDirection: 'column'
+          }}>
+             <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '3px solid #1f2937', paddingBottom: '16px', marginBottom: '24px' }}>
+               <div>
+                 <h1 style={{ fontSize: '24px', fontWeight: '900', color: '#065f46', margin: '0 0 4px 0', textTransform: 'uppercase' }}>{defaultCompany || 'Larangeira Mendes S/A'}</h1>
+                 <p style={{ fontSize: '16px', fontWeight: 'bold', color: '#4b5563', margin: 0 }}>Relação de Insumos para Cotação</p>
+                 <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#6b7280', margin: '4px 0 0 0', maxWidth: '400px' }}>Ref: {titulosSelecionados}</p>
+               </div>
+               <div style={{ textAlign: 'right' }}>
+                 <p style={{ fontSize: '14px', color: '#4b5563', margin: 0 }}>Emissão: {new Date().toLocaleDateString('pt-BR')}</p>
+               </div>
+             </div>
+             
+             <div style={{ flex: '1 0 auto' }}>
+               {Object.entries(itensAgrupadosGlobal).map(([cat, itensDict]) => {
+                 const itensArr = Object.values(itensDict);
+                 if (itensArr.length === 0) return null;
+                 return (
+                   <div key={cat} style={{ marginBottom: '24px' }}>
+                     <h3 style={{ fontSize: '14px', fontWeight: 'bold', color: '#374151', borderBottom: '1px solid #e5e7eb', paddingBottom: '4px', marginBottom: '12px', textTransform: 'uppercase' }}>
+                       Lista de {cat}
+                     </h3>
+                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                       <thead>
+                         <tr style={{ backgroundColor: '#f3f4f6', borderBottom: '2px solid #d1d5db', color: '#374151' }}>
+                           <th style={{ padding: '10px 8px', textAlign: 'center', width: '12%' }}>QTD</th>
+                           <th style={{ padding: '10px 8px', textAlign: 'center', width: '8%' }}>UN</th>
+                           <th style={{ padding: '10px 8px', textAlign: 'left', width: '40%' }}>DESCRIÇÃO</th>
+                           <th style={{ padding: '10px 8px', textAlign: 'left', width: '40%' }}>OBSERVAÇÃO</th>
+                         </tr>
+                       </thead>
+                       <tbody>
+                         {itensArr.map((i, idx) => {
+                           const obsArr = [...i.observacoes];
+                           return (
+                             <tr key={idx} style={{ borderBottom: '1px solid #f3f4f6', color: '#1f2937' }}>
+                               <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 'bold' }}>{formatQtd(i.quantidadeTotal)}</td>
+                               <td style={{ padding: '10px 8px', textAlign: 'center' }}>{i.unidade}</td>
+                               <td style={{ padding: '10px 8px', fontWeight: 'bold' }}>{i.nomeExibicao}</td>
+                               <td style={{ padding: '10px 8px', color: 'black' }}>{obsArr.length > 0 ? obsArr.join(' | ') : '-'}</td>
+                             </tr>
+                           );
+                         })}
+                       </tbody>
+                     </table>
+                   </div>
+                 )
+               })}
+             </div>
+
+             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '40px', paddingLeft: '20px', paddingRight: '20px' }}>
+               <div style={{ width: '40%', textAlign: 'center' }}>
+                 <div style={{ borderTop: '1px solid #374151', marginBottom: '8px' }}></div>
+                 <p style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', color: '#374151' }}>Elaborado por</p>
+                 <p style={{ margin: 0, fontSize: '12px', color: '#6b7280' }}>Setor ADM Agrícola / Compras</p>
+               </div>
+               <div style={{ width: '40%', textAlign: 'center' }}>
+                 <div style={{ borderTop: '1px solid #374151', marginBottom: '8px' }}></div>
+                 <p style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', color: '#374151' }}>Aprovado por</p>
+                 <p style={{ margin: 0, fontSize: '12px', color: '#6b7280' }}>Diretoria / Gerência</p>
+               </div>
+             </div>
+          </div>
+        )}
+
       </main>
+
+      {/* MODAL: SELECIONAR COTAÇÕES PARA UNIFICAR */}
+      {isGlobalPdfModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-md shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="font-black text-gray-800 text-xl flex items-center gap-2"><FileText className="text-blue-600"/> Unificar Cotações</h3>
+              <button onClick={() => { setIsGlobalPdfModalOpen(false); setSelectedCotacoesForPdf([]); }} className="bg-gray-100 text-gray-500 p-2 rounded-full hover:bg-red-50 hover:text-red-500"><X size={20}/></button>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">Selecione as cotações que deseja somar e agrupar no relatório de compras:</p>
+            <div className="space-y-2 max-h-60 overflow-y-auto mb-6 pr-2">
+              {cotacoes.map(cot => (
+                <div key={cot.id} onClick={() => handleToggleCotacaoForPdf(cot.id)} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${selectedCotacoesForPdf.includes(cot.id) ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                  {selectedCotacoesForPdf.includes(cot.id) ? <CheckSquare className="text-blue-600" size={20}/> : <Square className="text-gray-300" size={20}/>}
+                  <span className="font-bold text-gray-800">{cot.titulo}</span>
+                </div>
+              ))}
+            </div>
+            <button 
+              onClick={handleExportarPDFGlobal} 
+              disabled={isGeneratingPdf || selectedCotacoesForPdf.length === 0} 
+              className={`w-full py-4 rounded-xl font-black text-white shadow-md transition-all flex justify-center items-center gap-2 ${selectedCotacoesForPdf.length > 0 && !isGeneratingPdf ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-300 cursor-not-allowed'}`}
+            >
+              {isGeneratingPdf ? 'Processando Relatório...' : `Gerar PDF Unificado (${selectedCotacoesForPdf.length})`}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* MODAL: GERAR PEDIDOS */}
       {isGerarModalOpen && (
