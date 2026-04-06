@@ -248,11 +248,13 @@ export default function PlanejarVariedades() {
           ...newState[uid],
           variedades: newState[uid].variedades.map(r => {
             const field = tipo === 'variedades' ? 'variedadeId' : 'taxaId';
+            const nomeAtual = getVariedadeNome(r.variedadeId); // Pega o nome para checar
+
             if (valueToApply === 'nenhuma') {
-              if (filtroVariedade && r.variedadeId === filtroVariedade) return { ...r, [field]: '' };
+              if (filtroVariedade && nomeAtual === filtroVariedade) return { ...r, [field]: '' };
               if (!filtroVariedade) return { ...r, [field]: '' };
             } else {
-              if (filtroVariedade && r.variedadeId === filtroVariedade) return { ...r, [field]: valueToApply };
+              if (filtroVariedade && nomeAtual === filtroVariedade) return { ...r, [field]: valueToApply };
               if (!filtroVariedade) return { ...r, [field]: valueToApply };
             }
             return r;
@@ -309,15 +311,18 @@ export default function PlanejarVariedades() {
       config.variedades.forEach(r => {
         const val = parseFloat(r.areaHa) || 0;
         if (r.variedadeId) {
-          if (!resumo[r.variedadeId]) resumo[r.variedadeId] = { ha: 0, embalagens: 0, tipoEmb: '' };
+          const nomeVar = getVariedadeNome(r.variedadeId); // NOVO: Pega o NOME para agrupar
           
-          resumo[r.variedadeId].ha += val;
+          // Agrupa pelo NOME ao invés do ID
+          if (!resumo[nomeVar]) resumo[nomeVar] = { id: r.variedadeId, nome: nomeVar, ha: 0, embalagens: 0, tipoEmb: '' };
+          
+          resumo[nomeVar].ha += val;
           areaTotalPlanejada += val;
 
           const calcEmb = calcularEmbalagens(val, r.taxaId, r.variedadeId);
           if (!calcEmb.erro && calcEmb.total > 0) {
-            resumo[r.variedadeId].embalagens += calcEmb.total;
-            resumo[r.variedadeId].tipoEmb = calcEmb.tipo; 
+            resumo[nomeVar].embalagens += calcEmb.total;
+            resumo[nomeVar].tipoEmb = calcEmb.tipo; 
           }
         } else {
           areaTotalLivre += val;
@@ -325,7 +330,7 @@ export default function PlanejarVariedades() {
       });
     });
     
-    const lista = Object.entries(resumo).map(([id, data]) => ({ id, ...data }));
+    const lista = Object.values(resumo); // Converte de volta para array
     return { lista, areaTotalPlanejada, areaTotalLivre };
   };
   return (
@@ -540,14 +545,14 @@ export default function PlanejarVariedades() {
                         </div>
                       )}
 
-                      {[...resumoDinamico.lista].sort((a, b) => filterSortBy === 'nome' ? getVariedadeNome(a.id).localeCompare(getVariedadeNome(b.id)) : b.ha - a.ha).map((item) => {
+                     {[...resumoDinamico.lista].sort((a, b) => filterSortBy === 'nome' ? a.nome.localeCompare(b.nome) : b.ha - a.ha).map((item) => {
                         const corVar = getVarColor(item.id);
-                        const isSelected = filtroVariedade === item.id;
-                        const nomeVar = getVariedadeNome(item.id);
+                        const isSelected = filtroVariedade === item.nome; // Filtra pelo NOME
+                        const nomeVar = item.nome;
                         return (
                           <div 
-                            key={item.id} 
-                            onClick={() => setFiltroVariedade(isSelected ? null : item.id)} 
+                            key={item.nome} // Chave pelo NOME
+                            onClick={() => setFiltroVariedade(isSelected ? null : item.nome)} // Seta o NOME
                             className="flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all hover:bg-gray-50 group"
                             style={{ border: `1px solid ${isSelected ? corVar : '#e5e7eb'}`, backgroundColor: isSelected ? `${corVar}05` : '#fff' }}
                           >
@@ -574,7 +579,7 @@ export default function PlanejarVariedades() {
                     <div className="max-w-4xl mx-auto space-y-6 pb-32 lg:pb-16">
                       {Object.entries(groupedAreas).map(([retiro, data]) => {
                         const blocosFiltrados = filtroVariedade 
-                          ? data.items.filter(({ config }) => config.variedades.some(r => r.variedadeId === filtroVariedade))
+                          ? data.items.filter(({ config }) => config.variedades.some(r => getVariedadeNome(r.variedadeId) === filtroVariedade))
                           : data.items;
 
                         if (blocosFiltrados.length === 0) return null;
@@ -598,7 +603,7 @@ export default function PlanejarVariedades() {
                                 return (
                                   <div key={uid} className={`flex flex-col gap-1.5 transition-all ${selectionMode && !isSelected ? 'opacity-80' : ''} ${isSelected ? 'bg-black/5 ring-2 ring-gray-300 p-2 rounded-xl' : ''}`}>
                                     {rows.map((row, index) => {
-                                      if (filtroVariedade && row.variedadeId !== filtroVariedade && row.variedadeId !== '') return null;
+                                      if (filtroVariedade && getVariedadeNome(row.variedadeId) !== filtroVariedade && row.variedadeId !== '') return null;
                                       
                                       const calcEmb = calcularEmbalagens(parseFloat(row.areaHa), row.taxaId, row.variedadeId);
 
