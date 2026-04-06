@@ -22,6 +22,7 @@ import PlanejarVariedades from './pages/PlanejarVariedades';
 import PlanejarInsumos from './pages/PlanejarInsumos';
 import Cotacoes from './pages/Cotacoes';
 import Pedidos from './pages/Pedidos';
+import Compras from './pages/Compras';
 import Recebimentos from './pages/Recebimentos';
 
 // NOVA IMPORTAÇÃO: A tela do Fornecedor (Criaremos no próximo passo)
@@ -69,6 +70,7 @@ export default function App() {
       case 'planejar_insumos': return <PlanejarInsumos />; 
       case 'cotacoes': return <Cotacoes />;
       case 'pedidos': return <Pedidos />;
+      case 'compras': return <Compras />;
       case 'recebimentos': return <Recebimentos />;
       default: return <Home />;
     }

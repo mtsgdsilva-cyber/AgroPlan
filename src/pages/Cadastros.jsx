@@ -3,7 +3,7 @@ import React, { useState, useRef } from 'react';
 import { useAgro } from '../contexts/AgroContext';
 import { useModal } from '../contexts/ModalContext';
 import { generateId, calcSeedsPerHa } from '../utils/helpers';
-import { Map, Leaf, Sprout, Calculator, UploadCloud, Plus, Database, Trash, Package, Square, CheckSquare, Edit2, Save, X } from 'lucide-react';
+import { Map, Leaf, Sprout, Calculator, UploadCloud, Plus, Database, Trash, Package, Square, CheckSquare, Edit2, Save, X, Copy } from 'lucide-react';
 import Card from '../components/Card';
 import * as xlsx from 'xlsx';
 
@@ -190,6 +190,12 @@ export default function Cadastros() {
   const [isModalEmbVarOpen, setIsModalEmbVarOpen] = useState(false);
   const [embSelecionadaId, setEmbSelecionadaId] = useState('');
 
+  // Estados para Cópia em Lote de Variedades
+  const [isCopyVarModalOpen, setIsCopyVarModalOpen] = useState(false);
+  const [copySourceCulturaId, setCopySourceCulturaId] = useState('');
+  const [copyTargetCulturaId, setCopyTargetCulturaId] = useState('');
+  const [varsToCopy, setVarsToCopy] = useState([]);
+
   const handleToggleVar = (id) => setVarsSelecionadas(prev => prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id]);
   
   const handleSelectAllVars = () => {
@@ -204,6 +210,28 @@ export default function Cadastros() {
     if (!embSelecionadaId) return showAlert("Atenção", "Selecione uma embalagem ou escolha 'Não definida'.", "danger");
     setVariedades(variedades.map(v => varsSelecionadas.includes(v.id) ? { ...v, embalagemId: embSelecionadaId === 'nenhuma' ? '' : embSelecionadaId } : v));
     setVarsSelecionadas([]); setEmbSelecionadaId(''); setIsModalEmbVarOpen(false); setIsVarSelectionMode(false);
+  };
+
+  // Lógica de Cópia
+  const handleConfirmCopyVars = () => {
+    if (!copyTargetCulturaId) return showAlert("Atenção", "Selecione a cultura de destino.", "danger");
+    if (varsToCopy.length === 0) return showAlert("Atenção", "Selecione pelo menos uma variedade para copiar.", "danger");
+    if (copySourceCulturaId === copyTargetCulturaId) return showAlert("Atenção", "A cultura de origem e destino não podem ser as mesmas.", "danger");
+
+    const varsToDuplicate = variedades.filter(v => varsToCopy.includes(v.id));
+    const duplicatedVars = varsToDuplicate.map(v => ({
+      ...v,
+      id: generateId(),
+      culturaId: copyTargetCulturaId
+    }));
+
+    setVariedades(prev => [...prev, ...duplicatedVars]);
+    showAlert("Sucesso", `${duplicatedVars.length} variedades copiadas com sucesso!`, "success");
+    
+    setIsCopyVarModalOpen(false);
+    setCopySourceCulturaId('');
+    setCopyTargetCulturaId('');
+    setVarsToCopy([]);
   };
 
   const [showEmbForm, setShowEmbForm] = useState(false);
@@ -352,7 +380,6 @@ export default function Cadastros() {
                 }`}
               >
                 <Icon size={20} className={isActive ? "text-white" : "text-gray-400"} /> 
-                {/* O texto some no mobile e aparece no desktop */}
                 <span className="hidden md:block">{tab.label}</span>
               </button>
             );
@@ -592,6 +619,63 @@ export default function Cadastros() {
         {activeSubTab === 'variedades' && (
           <div className="animate-fade-in">
             
+            {/* MODAL DE CÓPIA EM LOTE */}
+            {isCopyVarModalOpen && (
+              <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4 animate-fade-in">
+                <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border-t-8 border-green-600 max-h-[90vh] overflow-y-auto">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="font-black text-gray-800 text-xl flex items-center gap-2"><Copy size={24} className="text-green-600"/> Copiar Variedades</h3>
+                    <button onClick={() => {setIsCopyVarModalOpen(false); setVarsToCopy([]); setCopySourceCulturaId(''); setCopyTargetCulturaId('');}} className="bg-gray-100 text-gray-500 p-2 rounded-full hover:bg-red-50 hover:text-red-500"><X size={20}/></button>
+                  </div>
+                  
+                  <div className="space-y-4 mb-6">
+                    <div>
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 block">1. Cultura de Origem</label>
+                      <select value={copySourceCulturaId} onChange={(e) => {setCopySourceCulturaId(e.target.value); setVarsToCopy([]);}} className="w-full border-2 border-gray-200 rounded-xl p-3 bg-gray-50 text-gray-800 font-bold outline-none focus:border-green-500">
+                        <option value="" disabled>Selecione a origem...</option>
+                        {culturas.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                      </select>
+                    </div>
+
+                    {copySourceCulturaId && (
+                      <div className="animate-fade-in">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 block">2. Selecionar Variedades</label>
+                        <div className="bg-gray-50 border-2 border-gray-200 rounded-xl p-3 max-h-40 overflow-y-auto space-y-2">
+                          {variedades.filter(v => v.culturaId === copySourceCulturaId).length === 0 && <p className="text-xs text-gray-400 italic">Nenhuma variedade nesta cultura.</p>}
+                          {variedades.filter(v => v.culturaId === copySourceCulturaId).map(v => (
+                            <label key={v.id} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                              <input 
+                                type="checkbox" 
+                                checked={varsToCopy.includes(v.id)}
+                                onChange={() => setVarsToCopy(prev => prev.includes(v.id) ? prev.filter(id => id !== v.id) : [...prev, v.id])}
+                                className="w-4 h-4 text-green-600 rounded border-gray-300 focus:ring-green-500"
+                              />
+                              <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full" style={{backgroundColor: v.cor}}></div>
+                                <span className="text-sm font-bold text-gray-700 uppercase">{v.nome}</span>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 block">3. Cultura de Destino</label>
+                      <select value={copyTargetCulturaId} onChange={(e) => setCopyTargetCulturaId(e.target.value)} className="w-full border-2 border-gray-200 rounded-xl p-3 bg-gray-50 text-gray-800 font-bold outline-none focus:border-green-500">
+                        <option value="" disabled>Selecione o destino...</option>
+                        {culturas.filter(c => c.id !== copySourceCulturaId).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  <button onClick={handleConfirmCopyVars} disabled={varsToCopy.length === 0 || !copyTargetCulturaId} className="w-full py-4 bg-green-600 text-white font-black text-lg rounded-2xl hover:bg-green-700 shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                    Copiar ({varsToCopy.length})
+                  </button>
+                </div>
+              </div>
+            )}
+
            {/* MODAL DE EMBALAGENS */}
             {isModalEmbVarOpen && (
               <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4 animate-fade-in">
@@ -612,12 +696,17 @@ export default function Cadastros() {
             )}
 
             {/* CABEÇALHO COM MODO DE SELEÇÃO */}
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
               <h2 className="text-lg font-black text-gray-800 flex items-center gap-2"><Sprout className="text-green-600"/> Sementes</h2>
               {!isVarSelectionMode ? (
-                <button onClick={() => setIsVarSelectionMode(true)} className="text-sm font-bold text-blue-700 bg-blue-50 px-4 py-2 rounded-xl border border-blue-200 shadow-sm hover:bg-blue-100 transition-colors flex items-center gap-2">
-                  <Package size={16} /> Embalagens
-                </button>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setIsCopyVarModalOpen(true)} className="text-sm font-bold text-green-700 bg-green-50 px-4 py-2 rounded-xl border border-green-200 shadow-sm hover:bg-green-100 transition-colors flex items-center gap-2">
+                    <Copy size={16} /> Copiar
+                  </button>
+                  <button onClick={() => setIsVarSelectionMode(true)} className="text-sm font-bold text-blue-700 bg-blue-50 px-4 py-2 rounded-xl border border-blue-200 shadow-sm hover:bg-blue-100 transition-colors flex items-center gap-2">
+                    <Package size={16} /> Embalagens
+                  </button>
+                </div>
               ) : (
                 <div className="flex items-center gap-2 animate-fade-in">
                   <button onClick={handleSelectAllVars} className="text-sm font-bold text-blue-700 bg-blue-50 px-4 py-2 rounded-xl border border-blue-200 shadow-sm hover:bg-blue-100 transition-colors hidden md:block">
@@ -696,7 +785,7 @@ export default function Cadastros() {
                                 <div className="flex items-center gap-2">
                                   <span className="font-medium text-gray-700">{v.nome}</span>
                                   
-                                  {/* LÁPIS E LIXEIRA DA SEMENTE (HOVER) */}
+                                  {/* BOTÕES DE EDIÇÃO/EXCLUSÃO (Aparecem no Hover) */}
                                   {!isVarSelectionMode && (
                                     <div className="flex gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                                       <button onClick={(e) => { e.stopPropagation(); startEditVariedade(v); }} className="text-gray-300 hover:text-blue-600 p-1 rounded transition-all" title="Editar Nome"><Edit2 size={14} /></button>
@@ -749,6 +838,7 @@ export default function Cadastros() {
                                   ))}
                                 </div>
                                 <div className="pt-3 border-t border-gray-100 flex items-center gap-2">
+                                  <span className="text-xs font-semibold text-gray-500">Personalizada:</span>
                                   <input type="color" value={v.cor || '#3b82f6'} onChange={(e) => handleChangeCorVariedade(v.id, e.target.value)} className="w-full h-8 cursor-pointer rounded bg-transparent border-0" />
                                 </div>
                               </div>

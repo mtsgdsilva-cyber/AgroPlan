@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useProcurement } from '../contexts/ProcurementContext';
 import { generateId, formatCurrency } from '../utils/helpers';
-import { Calculator, Plus, ArrowLeft, CheckCircle2, Circle, AlertCircle, Building2, Package, Tag, FileText, X, Pencil, Minimize2, Maximize2, ChevronDown, ChevronRight, Trash, Download, CheckSquare, Square, Link, Clock } from 'lucide-react';
+import { Calculator, Plus, ArrowLeft, CheckCircle2, Circle, AlertCircle, Building2, Package, Tag, FileText, X, Pencil, Minimize2, Maximize2, ChevronDown, ChevronRight, Trash, Download, CheckSquare, Square, Link, Clock, ListOrdered } from 'lucide-react';
 import Header from '../components/Header';
 import { useModal } from '../contexts/ModalContext';
 import jsPDF from 'jspdf';
@@ -18,6 +18,7 @@ export default function Cotacoes() {
   const [viewMode, setViewMode] = useState('produto'); 
 
   const [expandedItems, setExpandedItems] = useState({}); 
+  const [sortByCategory, setSortByCategory] = useState(false); // NOVO ESTADO: ORDENAR POR CATEGORIA
 
   const [tituloCotacao, setTituloCotacao] = useState('');
   const [dataCotacao, setDataCotacao] = useState(new Date().toISOString().split('T')[0]);
@@ -392,7 +393,7 @@ export default function Cotacoes() {
                 cotacoes.map(cot => {
                   const itensFechados = cot.itens.filter(i => i.status === 'Fechado').length;
                   return (
-                    <div key={cot.id} onClick={() => { setSelectedCotacaoId(cot.id); setCurrentView('detail'); }} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 hover:shadow-md hover:border-emerald-200 cursor-pointer transition-all flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div key={cot.id} onClick={() => { setSelectedCotacaoId(cot.id); setCurrentView('detail'); }} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 md:p-5 hover:shadow-md hover:border-emerald-200 cursor-pointer transition-all flex flex-col md:flex-row md:items-center justify-between gap-4">
                       <div className="flex items-start gap-4">
                         <div className="bg-emerald-50 p-3 rounded-xl text-emerald-600 shrink-0"><FileText size={24} /></div>
                         <div>
@@ -490,15 +491,21 @@ export default function Cotacoes() {
                 )}
                 
                 <div className="flex bg-gray-100 p-1 rounded-xl shrink-0">
-                  <button onClick={() => setViewMode('produto')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'produto' ? 'bg-white text-gray-800 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700'}`}>Por Produto</button>
-                  <button onClick={() => setViewMode('fornecedor')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'fornecedor' ? 'bg-white text-gray-800 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700'}`}>Por Fornecedor</button>
+                  <button onClick={() => setViewMode('produto')} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'produto' ? 'bg-white text-gray-800 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700'}`}>Por Produto</button>
+                  <button onClick={() => setViewMode('fornecedor')} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'fornecedor' ? 'bg-white text-gray-800 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700'}`}>Por Fornecedor</button>
                 </div>
 
                 {viewMode === 'produto' && (
-                  <button onClick={handleToggleExpandAll} className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 p-2 md:px-4 md:py-2 rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 shrink-0" title="Expandir/Recolher Todos">
-                    {cotacaoAtiva.itens.every(i => expandedItems[i.id] !== false) ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-                    <span className="hidden md:block font-bold text-xs">{cotacaoAtiva.itens.every(i => expandedItems[i.id] !== false) ? 'Recolher' : 'Expandir'}</span>
-                  </button>
+                  <>
+                    <button onClick={() => setSortByCategory(!sortByCategory)} className={`bg-white border hover:bg-gray-50 p-2 md:px-4 md:py-2 rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 shrink-0 ${sortByCategory ? 'border-blue-400 text-blue-600' : 'border-gray-200 text-gray-600'}`} title="Ordenar por Categoria">
+                      <ListOrdered size={16} />
+                      <span className="hidden md:block font-bold text-xs">Por Categoria</span>
+                    </button>
+                    <button onClick={handleToggleExpandAll} className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 p-2 md:px-4 md:py-2 rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 shrink-0" title="Expandir/Recolher Todos">
+                      {cotacaoAtiva.itens.every(i => expandedItems[i.id] !== false) ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                      <span className="hidden md:block font-bold text-xs">{cotacaoAtiva.itens.every(i => expandedItems[i.id] !== false) ? 'Recolher' : 'Expandir'}</span>
+                    </button>
+                  </>
                 )}
                 
                 {hasItensFechados && (
@@ -514,119 +521,187 @@ export default function Cotacoes() {
             </div>
 
             {viewMode === 'produto' && (
-              <div className="space-y-4">
-                {cotacaoAtiva.itens.map(item => {
-                  const ofertasOrdenadas = [...item.ofertas].sort((a, b) => a.precoUnitario - b.precoUnitario);
-                  const isExpanded = expandedItems[item.id] !== false; 
+              <div className="space-y-3">
+                {(() => {
+                  let itensParaExibir = [...cotacaoAtiva.itens];
+                  if (sortByCategory) {
+                    itensParaExibir.sort((a, b) => (a.categoria || 'ZZZ').localeCompare(b.categoria || 'ZZZ'));
+                  }
                   
-                  return (
-                    <div key={item.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-2">
-                      <div onClick={() => setExpandedItems(prev => ({...prev, [item.id]: !isExpanded}))} className="bg-gray-50/80 p-4 border-b border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-3 cursor-pointer hover:bg-gray-100 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <div className="text-gray-400 shrink-0">{isExpanded ? <ChevronDown size={20}/> : <ChevronRight size={20}/>}</div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <Tag size={16} className="text-emerald-600" />
-                              <h3 className="text-base font-semibold text-gray-800">{item.nome}</h3>
-                              {item.categoria && <span className="px-2 py-0.5 bg-gray-200 text-gray-600 rounded text-[10px] uppercase tracking-widest font-bold">{item.categoria}</span>}
-                              <button onClick={(e) => abrirModalEdicaoItem(item, e)} className="text-gray-300 hover:text-blue-500 hover:bg-blue-50 p-1 rounded-md transition-colors" title="Editar Produto">
-                                <Pencil size={14} />
-                              </button>
-                            </div>
-                            <p className="text-sm font-medium text-gray-500 mt-1">
-                              Qtd: <span className="font-semibold text-gray-800">{formatQtd(item.quantidade)} {item.unidade}</span>
-                            </p>
-                            {item.observacaoItem && (
-                              <p className="text-[10px] text-orange-600 font-semibold mt-1 uppercase tracking-wider">Obs: {item.observacaoItem}</p>
-                            )}
+                  return itensParaExibir.map(item => {
+                    const ofertasOrdenadas = [...item.ofertas].sort((a, b) => a.precoUnitario - b.precoUnitario);
+                    const isExpanded = expandedItems[item.id] !== false; 
+                    
+                    return (
+                      <div key={item.id} className="bg-white rounded-xl border border-blue-100 shadow-sm overflow-hidden">
+                        
+                        {/* CABEÇALHO DO PRODUTO (AZUL BEBÊ - SLIM) */}
+                        <div onClick={() => setExpandedItems(prev => ({...prev, [item.id]: !isExpanded}))} className="bg-sky-50 text-slate-800 py-3 px-4 flex items-center justify-between cursor-pointer hover:bg-sky-100 transition-colors border-b border-blue-100">
+                          <div className="flex items-center gap-3 overflow-hidden">
+                            <div className="text-blue-400 shrink-0">{isExpanded ? <ChevronDown size={18}/> : <ChevronRight size={18}/>}</div>
+                            <Tag size={16} className="text-blue-500 shrink-0 hidden md:block" />
+                            <h3 className="text-base font-bold truncate text-slate-800" title={item.nome}>{item.nome}</h3>
+                            
+                            {/* QUANTIDADE MOVIDA PARA A ESQUERDA */}
+                            <span className="font-semibold text-sm bg-white text-blue-800 px-2 py-0.5 rounded border border-blue-200 shadow-sm whitespace-nowrap">{formatQtd(item.quantidade)} {item.unidade}</span>
+                            
+                            <button onClick={(e) => abrirModalEdicaoItem(item, e)} className="text-blue-300 hover:text-blue-600 p-1 rounded-md transition-colors shrink-0" title="Editar Produto"><Pencil size={14} /></button>
+                          </div>
+                          
+                          <div className="flex items-center gap-3 shrink-0 text-sm">
+                            {/* CATEGORIA MOVIDA PARA A DIREITA */}
+                            {item.categoria && <span className="hidden md:inline-block px-2 py-0.5 bg-white text-slate-600 rounded text-[10px] uppercase tracking-widest font-bold border border-slate-200">{item.categoria}</span>}
+                            
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest hidden md:inline-block border ${item.status === 'Fechado' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-orange-100 text-orange-700 border-orange-200'}`}>{item.status}</span>
+                            <button onClick={(e) => abrirModalNovaOferta(item.id, e)} className="text-blue-700 bg-white hover:bg-blue-50 px-2.5 py-1 rounded-lg text-xs font-bold border border-blue-200 shadow-sm flex items-center gap-1"><Plus size={14}/> Manual</button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <span className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest ${item.status === 'Fechado' ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>{item.status}</span>
-                          <button onClick={(e) => abrirModalNovaOferta(item.id, e)} className="text-emerald-600 hover:bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1.5 bg-white"><Plus size={16}/> Oferta Manual</button>
-                        </div>
-                      </div>
-                      
-                      {isExpanded && (
-                        <div className="p-2 md:p-4 bg-white animate-fade-in">
-                          {ofertasOrdenadas.length === 0 ? <p className="text-xs font-semibold text-gray-400 text-center py-4 italic">Aguardando ofertas...</p> : (
-                            <div className="space-y-2">
-                              {ofertasOrdenadas.map((oferta, index) => {
-                                const isVencedora = item.ofertaVencedoraId === oferta.id;
-                                return (
-                                  <div key={oferta.id} onClick={() => handleToggleVencedor(item.id, oferta.id)} className={`flex flex-col md:flex-row md:items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${isVencedora ? 'border-emerald-500 bg-emerald-50/50 shadow-sm ring-1 ring-emerald-500' : 'border-gray-100 hover:border-gray-300'}`}>
-                                    <div className="shrink-0 hidden md:flex">{isVencedora ? <CheckCircle2 size={24} className="text-emerald-600" /> : <Circle size={24} className="text-gray-300" />}</div>
-                                    <div className="flex-1 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                                      <div className="flex items-start md:items-center gap-3">
-                                        <div className="shrink-0 md:hidden mt-1 md:mt-0">{isVencedora ? <CheckCircle2 size={20} className="text-emerald-600" /> : <Circle size={20} className="text-gray-300" />}</div>
-                                        <div>
-                                          {/* NOME DA EMPRESA E DO VENDEDOR (NOVO) */}
-                                          <h4 className={`font-bold text-base ${isVencedora ? 'text-emerald-900' : 'text-gray-800'}`}>
-                                            {oferta.fornecedor} {oferta.vendedor && <span className="text-xs font-semibold text-gray-500 ml-1">({oferta.vendedor})</span>}
-                                          </h4>
-                                          
-                                          {/* PRODUTO ALTERNATIVO (NOVO) */}
-                                          {oferta.produtoAlternativo && (
-                                            <p className="text-xs font-bold text-orange-600 mt-1">Ofertado: {oferta.produtoAlternativo}</p>
-                                          )}
-
-                                          <div className="flex flex-wrap items-center gap-2 mt-1 text-[10px] font-bold text-gray-500 uppercase">
-                                            {/* DATA DA RESPOSTA (NOVO) */}
-                                            {oferta.dataResposta && (
-                                              <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-200 flex items-center gap-1">
-                                                <Clock size={10}/> {new Date(oferta.dataResposta).toLocaleDateString('pt-BR')}
-                                              </span>
-                                            )}
-                                            {oferta.condicaoPagamento && <span className="bg-gray-100 px-2 py-0.5 rounded-md border border-gray-200">{oferta.condicaoPagamento}</span>}
-                                            {index === 0 && <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-md border border-green-200">Menor Preço</span>}
+                        
+                        {/* ÁREA DA TABELA (OFERTAS) */}
+                        {isExpanded && (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse whitespace-nowrap">
+                              <thead>
+                                <tr className="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 uppercase tracking-wider">
+                                  <th className="py-2.5 px-4 w-12 text-center">Sel.</th>
+                                  <th className="py-2.5 px-4 font-semibold">Fornecedor</th>
+                                  <th className="py-2.5 px-4 font-semibold">Data Env.</th>
+                                  <th className="py-2.5 px-4 font-semibold text-center">Cond. Pgto</th>
+                                  <th className="py-2.5 px-4 font-semibold">Produto Ofertado / Subst.</th>
+                                  <th className="py-2.5 px-4 font-semibold text-right">R$ Unit.</th>
+                                  <th className="py-2.5 px-4 font-semibold text-right">R$ Total</th>
+                                  <th className="py-2.5 px-4 font-semibold text-center w-16">Ações</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {ofertasOrdenadas.length === 0 ? (
+                                  <tr>
+                                    <td colSpan="8" className="p-4 text-center text-gray-500 italic text-sm">Aguardando ofertas...</td>
+                                  </tr>
+                                ) : (
+                                  ofertasOrdenadas.map((oferta, index) => {
+                                    const isVencedora = item.ofertaVencedoraId === oferta.id;
+                                    return (
+                                      <tr 
+                                        key={oferta.id} 
+                                        onClick={() => handleToggleVencedor(item.id, oferta.id)}
+                                        className={`border-b border-gray-100 cursor-pointer transition-colors ${isVencedora ? 'bg-emerald-50/60' : 'hover:bg-gray-50 bg-white'}`}
+                                      >
+                                        <td className="py-3 px-4 text-center">
+                                          {isVencedora ? <CheckCircle2 size={18} className="text-emerald-600 mx-auto" /> : <Circle size={18} className="text-gray-300 mx-auto" />}
+                                        </td>
+                                        <td className="py-3 px-4 text-sm text-gray-800">
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-semibold">{oferta.fornecedor}</span>
+                                            {oferta.vendedor && <span className="text-gray-500 text-xs">({oferta.vendedor})</span>}
+                                            {index === 0 && <span className="inline-block bg-green-100 text-green-700 text-[10px] px-1.5 py-0.5 rounded border border-green-300 font-bold uppercase">Menor Preço</span>}
                                           </div>
-                                        </div>
-                                      </div>
-                                      <div className="flex flex-row items-center justify-between md:justify-end gap-4 pt-2 md:pt-0 mt-2 md:mt-0 border-t md:border-none border-gray-100 w-full md:w-auto">
-                                        <div className="flex flex-col md:items-end text-left md:text-right">
-                                          <span className="text-xs font-semibold text-gray-500">{formatCurrency(oferta.precoUnitario)} / un</span>
-                                          <span className={`text-lg font-black ${isVencedora ? 'text-emerald-700' : 'text-gray-800'}`}>{formatCurrency(item.quantidade * oferta.precoUnitario)}</span>
-                                        </div>
-                                        <button onClick={(e) => abrirModalEdicaoOferta(item.id, oferta, e)} className="p-2.5 bg-gray-50 hover:bg-blue-100 text-gray-400 hover:text-blue-600 rounded-xl border border-gray-200 transition-colors" title="Editar Oferta Manualmente"><Pencil size={16} /></button>
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                                        </td>
+                                        <td className="py-3 px-4 text-sm text-gray-600">
+                                          {oferta.dataResposta ? new Date(oferta.dataResposta).toLocaleDateString('pt-BR') : '-'}
+                                        </td>
+                                        <td className="py-3 px-4 text-sm text-gray-600 text-center">
+                                          <span className="bg-gray-100 px-2 py-0.5 rounded border border-gray-200 text-xs font-semibold">{oferta.condicaoPagamento || 'À vista'}</span>
+                                        </td>
+                                        <td className="py-3 px-4 text-sm text-gray-600">
+                                          {oferta.produtoAlternativo ? <span className="text-orange-600 font-medium">{oferta.produtoAlternativo}</span> : <span className="text-gray-400 italic">Exato</span>}
+                                        </td>
+                                        <td className="py-3 px-4 text-sm text-gray-800 text-right">
+                                          {formatCurrency(oferta.precoUnitario)}
+                                        </td>
+                                        <td className="py-3 px-4 text-sm text-gray-800 text-right font-medium">
+                                          {formatCurrency(item.quantidade * oferta.precoUnitario)}
+                                        </td>
+                                        <td className="py-3 px-4 text-center">
+                                          <button onClick={(e) => abrirModalEdicaoOferta(item.id, oferta, e)} className="text-gray-400 hover:text-blue-600 p-1 transition-colors"><Pencil size={16}/></button>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             )}
 
             {viewMode === 'fornecedor' && (
               <div className="space-y-6">
                 {getVisaoFornecedor().map(forn => (
-                  <div key={forn.fornecedor} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                    <div className="bg-gray-800 p-4 flex justify-between items-center gap-2">
-                      <h3 className="text-lg font-black text-white flex items-center gap-2"><Building2 size={20} className="text-gray-400"/> {forn.fornecedor}</h3>
-                      <div className="flex flex-col text-right"><span className="text-[10px] font-bold text-gray-400 uppercase">Total Ofertado</span><span className="text-xl font-black text-emerald-400">{formatCurrency(forn.totalPotencial)}</span></div>
+                  <div key={forn.fornecedor} className="bg-white rounded-xl border border-gray-300 shadow-sm overflow-hidden">
+                    
+                    {/* CABEÇALHO DO FORNECEDOR */}
+                    <div className="bg-slate-800 py-3 px-4 flex justify-between items-center text-white">
+                      <h3 className="text-base font-bold flex items-center gap-2"><Building2 size={18} className="text-gray-400"/> {forn.fornecedor}</h3>
+                      <div className="flex items-center gap-2 text-right">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase hidden md:block">Total Ofertado:</span>
+                        <span className="text-lg font-black text-emerald-400">{formatCurrency(forn.totalPotencial)}</span>
+                      </div>
                     </div>
-                    <div className="p-2 md:p-4 bg-gray-50 space-y-2">
-                      {forn.itens.map(({ item, oferta }) => {
-                        const isVencedora = item.ofertaVencedoraId === oferta.id;
-                        return (
-                          <div key={oferta.id} onClick={() => handleToggleVencedor(item.id, oferta.id)} className={`flex items-center justify-between gap-3 p-3 rounded-xl border cursor-pointer transition-all ${isVencedora ? 'border-emerald-500 bg-white shadow-sm ring-1 ring-emerald-500' : 'border-gray-200 bg-white hover:border-emerald-300'}`}>
-                            <div className="flex items-center gap-3">
-                              {isVencedora ? <CheckCircle2 size={20} className="text-emerald-600" /> : <Circle size={20} className="text-gray-300" />}
-                              <div><span className={`font-bold text-sm ${isVencedora ? 'text-emerald-900' : 'text-gray-800'}`}>{item.nome}</span><span className="block text-xs text-gray-500">{formatQtd(item.quantidade)} {item.unidade}</span></div>
-                            </div>
-                            <div className="flex items-center gap-4">
-                              <div className="text-right hidden md:block"><span className="block text-xs text-gray-500">{formatCurrency(oferta.precoUnitario)} un</span><span className="font-black text-gray-800">{formatCurrency(item.quantidade * oferta.precoUnitario)}</span></div>
-                              <button onClick={(e) => abrirModalEdicaoOferta(item.id, oferta, e)} className="p-2.5 bg-gray-50 hover:bg-blue-100 text-gray-400 hover:text-blue-600 rounded-xl border border-gray-200 transition-colors" title="Editar Oferta"><Pencil size={16} /></button>
-                            </div>
-                          </div>
-                        );
-                      })}
+                    
+                    {/* TABELA DE PRODUTOS DO FORNECEDOR */}
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse whitespace-nowrap">
+                        <thead>
+                          <tr className="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 uppercase tracking-wider">
+                            <th className="py-2.5 px-4 w-12 text-center">Sel.</th>
+                            <th className="py-2.5 px-4 font-semibold">Produto Solicitado</th>
+                            <th className="py-2.5 px-4 font-semibold text-center">Qtd</th>
+                            <th className="py-2.5 px-4 font-semibold">Data / Vendedor</th>
+                            <th className="py-2.5 px-4 font-semibold">Produto Ofertado / Subst.</th>
+                            <th className="py-2.5 px-4 font-semibold text-center">Cond. Pgto</th>
+                            <th className="py-2.5 px-4 font-semibold text-right">R$ Unit.</th>
+                            <th className="py-2.5 px-4 font-semibold text-right">R$ Total</th>
+                            <th className="py-2.5 px-4 font-semibold text-center w-16">Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {forn.itens.map(({ item, oferta }) => {
+                            const isVencedora = item.ofertaVencedoraId === oferta.id;
+                            return (
+                              <tr 
+                                key={oferta.id} 
+                                onClick={() => handleToggleVencedor(item.id, oferta.id)} 
+                                className={`border-b border-gray-100 cursor-pointer transition-colors ${isVencedora ? 'bg-emerald-50/60' : 'hover:bg-gray-50 bg-white'}`}
+                              >
+                                <td className="py-3 px-4 text-center">
+                                  {isVencedora ? <CheckCircle2 size={18} className="text-emerald-600 mx-auto" /> : <Circle size={18} className="text-gray-300 mx-auto" />}
+                                </td>
+                                <td className="py-3 px-4 text-sm text-gray-800 font-semibold">
+                                  {item.nome}
+                                </td>
+                                <td className="py-3 px-4 text-sm text-gray-600 text-center bg-gray-50/50 border-x border-gray-100">
+                                  {formatQtd(item.quantidade)} {item.unidade}
+                                </td>
+                                <td className="py-3 px-4 text-sm text-gray-500">
+                                  {oferta.dataResposta && <span className="mr-2">{new Date(oferta.dataResposta).toLocaleDateString('pt-BR')}</span>}
+                                  {oferta.vendedor && <span>({oferta.vendedor})</span>}
+                                </td>
+                                <td className="py-3 px-4 text-sm text-gray-600">
+                                  {oferta.produtoAlternativo ? <span className="text-orange-600 font-medium">{oferta.produtoAlternativo}</span> : <span className="text-gray-400 italic">Exato</span>}
+                                </td>
+                                <td className="py-3 px-4 text-sm text-gray-600 text-center">
+                                  <span className="bg-gray-100 px-2 py-0.5 rounded border border-gray-200 text-xs font-semibold">{oferta.condicaoPagamento || 'À vista'}</span>
+                                </td>
+                                <td className="py-3 px-4 text-sm text-gray-800 text-right">
+                                  {formatCurrency(oferta.precoUnitario)}
+                                </td>
+                                <td className="py-3 px-4 text-sm text-gray-800 text-right font-medium">
+                                  {formatCurrency(item.quantidade * oferta.precoUnitario)}
+                                </td>
+                                <td className="py-3 px-4 text-center">
+                                  <button onClick={(e) => abrirModalEdicaoOferta(item.id, oferta, e)} className="text-gray-400 hover:text-blue-600 p-1 transition-colors"><Pencil size={16} /></button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 ))}
@@ -830,7 +905,7 @@ export default function Cotacoes() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-md shadow-2xl">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="font-black text-gray-800 text-xl flex items-center gap-2"><Tag className="text-blue-600"/> {editingOfferId ? 'Editar Oferta' : 'Registrar Oferta'}</h3>
+              <h3 className="font-black text-gray-800 text-xl flex items-center gap-2"><Tag className="text-blue-600"/> {editingOfferId ? 'Editar Oferta' : 'Registrar Oferta Manual'}</h3>
               <button onClick={fecharModalOferta} className="bg-gray-100 text-gray-500 p-2 rounded-full hover:bg-red-50 hover:text-red-500 transition-colors"><X size={20}/></button>
             </div>
             <form onSubmit={handleSalvarOferta} className="space-y-4">
@@ -840,8 +915,8 @@ export default function Cotacoes() {
                 <div className="flex-1"><label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Pagamento</label><input type="text" value={ofertaPagamento} onChange={e => setOfertaPagamento(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3.5 font-semibold text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none" /></div>
               </div>
               <div><label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Entrega Prevista</label><input type="text" value={ofertaEntrega} onChange={e => setOfertaEntrega(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3.5 font-semibold text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none" /></div>
-              <div><label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Observação</label><input type="text" value={ofertaObs} onChange={e => setOfertaObs(e.target.value)} className="w-full bg-orange-50 border border-orange-200 rounded-xl p-3.5 font-semibold text-orange-800 focus:ring-2 focus:ring-orange-500 outline-none" /></div>
-              <button type="submit" className="w-full mt-6 bg-blue-600 text-white font-black py-4 rounded-xl hover:bg-blue-700 shadow-md transition-all">{editingOfferId ? 'Salvar Alterações' : 'Salvar Oferta Manual'}</button>
+              <div><label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Observação / Similar</label><input type="text" value={ofertaObs} onChange={e => setOfertaObs(e.target.value)} className="w-full bg-orange-50 border border-orange-200 rounded-xl p-3.5 font-semibold text-orange-800 focus:ring-2 focus:ring-orange-500 outline-none" /></div>
+              <button type="submit" className="w-full mt-6 bg-blue-600 text-white font-black py-4 rounded-xl hover:bg-blue-700 shadow-md transition-all">{editingOfferId ? 'Salvar Alterações' : 'Salvar Oferta'}</button>
             </form>
           </div>
         </div>

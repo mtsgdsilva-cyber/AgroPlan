@@ -1,6 +1,6 @@
 // src/components/Sidebar.jsx
 import React, { useState, useEffect } from 'react';
-import { Home, Database, CalendarDays, Calculator, FileText, PackageCheck, Leaf, Menu, X, LogOut, Map, Sprout, ChevronLeft, ChevronRight, FlaskConical } from 'lucide-react';
+import { Home, Database, CalendarDays, Calculator, FileText, PackageCheck, Leaf, Menu, X, LogOut, Map, Sprout, ChevronLeft, ChevronRight, FlaskConical, FileSpreadsheet } from 'lucide-react';
 
 // Importações do Firebase para o Logout
 import { signOut } from 'firebase/auth';
@@ -23,6 +23,7 @@ export default function Sidebar({ activeTab, setActiveTab }) {
     { id: 'planejar_culturas', label: 'Planejar Culturas', icon: Map },
     { id: 'planejar_variedades', label: 'Planejar Variedades', icon: Sprout },
     { id: 'planejar_insumos', label: 'Planejar Insumos', icon: FlaskConical }, 
+    { id: 'compras', icon: FileSpreadsheet, label: 'Planilha de Compras' },
     { id: 'cotacoes', label: 'Cotações', icon: Calculator },
     { id: 'pedidos', label: 'Pedidos', icon: FileText },
     { id: 'recebimentos', label: 'Notas', icon: PackageCheck },
