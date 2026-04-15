@@ -2,13 +2,15 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useAgro } from '../contexts/AgroContext';
 import { generateId } from '../utils/helpers';
-import { Sprout, Calculator, ArrowLeft, Trash, Filter, CheckSquare, Square, X, Package, Map, FileText } from 'lucide-react';
+import { Sprout, Calculator, ArrowLeft, Trash, Filter, CheckSquare, Square, X, Package, Map, FileText, PanelLeft, FileSpreadsheet } from 'lucide-react';
 import Header from '../components/Header';
 import { useModal } from '../contexts/ModalContext';
 import ModalExportPdfPlantio from '../components/ModalExportPdfPlantio';
+import ModalExportPdfCotacao from '../components/ModalExportPdfCotacao';  
 
 export default function PlanejarVariedades() {
-  const { talhoes, culturas, variedades, taxasPlantio, embalagens, planosSafra, setPlanosSafra } = useAgro();
+  // ATENÇÃO: Adicionado o setVariedades aqui!
+  const { talhoes, culturas, variedades, setVariedades, taxasPlantio, embalagens, planosSafra, setPlanosSafra } = useAgro();
   const { showAlert } = useModal();
 
   // ==========================================
@@ -16,8 +18,8 @@ export default function PlanejarVariedades() {
   // ==========================================
   const [currentView, setCurrentView] = useState('list_cards');
   const [selectedSafraId, setSelectedSafraId] = useState(null);
-  const [selectedCulturaIds, setSelectedCulturaIds] = useState([]); // ARRAY DE CULTURAS
-  const [culturasSelecionadas, setCulturasSelecionadas] = useState([]); // Controle múltiplo nos cards
+  const [selectedCulturaIds, setSelectedCulturaIds] = useState([]); 
+  const [culturasSelecionadas, setCulturasSelecionadas] = useState([]); 
 
   const [editVarConfig, setEditVarConfig] = useState({}); 
   const [selectionMode, setSelectionMode] = useState(null); 
@@ -26,14 +28,17 @@ export default function PlanejarVariedades() {
   const [expandedRows, setExpandedRows] = useState({});
 
   const [isModalVarOpen, setIsModalVarOpen] = useState(false);
-  const [loteVarId, setLoteVarId] = useState('');
+  const [loteVarNome, setLoteVarNome] = useState(''); // NOVO: Controle por NOME
+  const [searchTermVar, setSearchTermVar] = useState(''); // NOVO: Pesquisa e Criação
   const [isModalTaxaOpen, setIsModalTaxaOpen] = useState(false);
   const [loteTaxaId, setLoteTaxaId] = useState('');
   
-  // Controles de Visualização e Exportação
+// Controles de Visualização e Exportação
   const [showTaxaBags, setShowTaxaBags] = useState(true);
+  const [showFiltersPanel, setShowFiltersPanel] = useState(true); // NOVO: Ocultar/Mostrar painel de filtros
   const [filterSortBy, setFilterSortBy] = useState('nome'); 
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isCotacaoModalOpen, setIsCotacaoModalOpen] = useState(false);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
@@ -51,7 +56,10 @@ export default function PlanejarVariedades() {
   // O MOTOR DE BUSCA (EXTRAI OS CARDS ATIVOS)
   // ==========================================
   const getCulturaNome = (id) => (culturas || []).find(c => c.id === id)?.nome || 'Desconhecida';
-  const getVariedadeNome = (id) => (variedades || []).find(v => v.id === id)?.nome || 'Semente Deletada';
+  const getVariedadeNome = (id) => {
+    if (!id) return '';
+    return (variedades || []).find(v => v.id === id)?.nome || 'Semente Deletada';
+  };
   const getTaxaNome = (id) => (taxasPlantio || []).find(t => t.id === id)?.nome || 'Sem Taxa';
   
   const getVarColor = (id) => {
@@ -238,38 +246,64 @@ export default function PlanejarVariedades() {
   const handleToggleLote = (uid) => setLoteSelecionados(prev => prev.includes(uid) ? prev.filter(id => id !== uid) : [...prev, uid]);
 
   const confirmarModalLote = (tipo) => {
-    const valueToApply = tipo === 'variedades' ? loteVarId : loteTaxaId;
-    if (!valueToApply) return;
+    if (tipo === 'variedades') {
+      if (!loteVarNome && !searchTermVar) return;
+      const nomeToApply = (loteVarNome || searchTermVar).trim();
 
-    setEditVarConfig(prev => {
-      const newState = { ...prev };
-      loteSelecionados.forEach(uid => {
-        newState[uid] = {
-          ...newState[uid],
-          variedades: newState[uid].variedades.map(r => {
-            const field = tipo === 'variedades' ? 'variedadeId' : 'taxaId';
-            const nomeAtual = getVariedadeNome(r.variedadeId); // Pega o nome para checar
+      setEditVarConfig(prev => {
+        const newState = { ...prev };
+        const newVarsCriadas = [];
 
-            if (valueToApply === 'nenhuma') {
-              if (filtroVariedade && nomeAtual === filtroVariedade) return { ...r, [field]: '' };
-              if (!filtroVariedade) return { ...r, [field]: '' };
-            } else {
-              if (filtroVariedade && nomeAtual === filtroVariedade) return { ...r, [field]: valueToApply };
-              if (!filtroVariedade) return { ...r, [field]: valueToApply };
+        // SE FOR SEMENTE NOVA, CADASTRA COMO SUGESTÃO PRIMEIRO
+        if (nomeToApply !== 'nenhuma') {
+          selectedCulturaIds.forEach(cid => {
+            const exists = (variedades || []).find(v => v.nome.toLowerCase() === nomeToApply.toLowerCase() && v.culturaId === cid);
+            if (!exists && !newVarsCriadas.some(n => n.culturaId === cid)) {
+              newVarsCriadas.push({ id: generateId(), nome: nomeToApply, culturaId: cid, isSuggested: true, cor: '#8b5cf6' });
             }
-            return r;
-          })
-        };
+          });
+          if (newVarsCriadas.length > 0 && setVariedades) setVariedades(vPrev => [...vPrev, ...newVarsCriadas]);
+        }
+
+        // APLICA NOS TALHÕES SELECIONADOS
+        loteSelecionados.forEach(uid => {
+          const rowCulturaId = newState[uid].culturaId;
+          newState[uid] = {
+            ...newState[uid],
+            variedades: newState[uid].variedades.map(r => {
+              if (nomeToApply === 'nenhuma') return { ...r, variedadeId: '' };
+              
+              let matchedId = (variedades || []).find(v => v.nome.toLowerCase() === nomeToApply.toLowerCase() && v.culturaId === rowCulturaId)?.id;
+              if (!matchedId) matchedId = newVarsCriadas.find(v => v.culturaId === rowCulturaId)?.id;
+              
+              return { ...r, variedadeId: matchedId || '' };
+            })
+          };
+        });
+        autoSave(newState);
+        return newState;
       });
-      autoSave(newState); 
-      return newState;
-    });
-    
-    setLoteSelecionados([]); 
-    if (tipo === 'variedades') { setLoteVarId(''); setIsModalVarOpen(false); }
-    else { setLoteTaxaId(''); setIsModalTaxaOpen(false); }
-    
-    if (filtroVariedade) setFiltroVariedade(null);
+
+      setLoteSelecionados([]); setLoteVarNome(''); setSearchTermVar(''); setIsModalVarOpen(false); setFiltroVariedade(null);
+      
+    } else {
+      if (!loteTaxaId) return;
+      setEditVarConfig(prev => {
+        const newState = { ...prev };
+        loteSelecionados.forEach(uid => {
+          newState[uid] = {
+            ...newState[uid],
+            variedades: newState[uid].variedades.map(r => {
+              if (loteTaxaId === 'nenhuma') return { ...r, taxaId: '' };
+              return { ...r, taxaId: loteTaxaId };
+            })
+          };
+        });
+        autoSave(newState);
+        return newState;
+      });
+      setLoteSelecionados([]); setLoteTaxaId(''); setIsModalTaxaOpen(false);
+    }
   };
 
   const calcularEmbalagens = (areaHa, taxaId, variedadeId) => {
@@ -401,7 +435,7 @@ export default function PlanejarVariedades() {
           </div>
         )}
 
-        {/* VIEW 2: DISTRIBUIÇÃO FLAT E FILTROS */}
+       {/* VIEW 2: DISTRIBUIÇÃO FLAT E FILTROS */}
         {currentView === 'plan_variedades' && selectedSafraId && selectedCulturaIds.length > 0 && (
           (() => {
             const safra = (planosSafra || []).find(s => s.id === selectedSafraId);
@@ -440,13 +474,32 @@ export default function PlanejarVariedades() {
                   </div>
 
                   <div className="hidden sm:flex items-center gap-2">
+                    {/* BOTÃO PARA MOSTRAR/OCULTAR FILTROS */}
                     <button
-                      onClick={() => setIsExportModalOpen(true)}
-                      className="flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-xl border bg-gray-800 text-white hover:bg-gray-900 shadow-sm transition-all"
-                      title="Exportar Relatório PDF"
+                      onClick={() => setShowFiltersPanel(prev => !prev)}
+                      className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border transition-all ${!showFiltersPanel ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
+                      title={showFiltersPanel ? "Ocultar Painel Lateral" : "Mostrar Painel Lateral"}
                     >
-                      <FileText size={14} /> Exportar
+                      <PanelLeft size={14} /> {showFiltersPanel ? 'Ocultar Resumo' : 'Mostrar Resumo'}
                     </button>
+
+                    {/* BOTÕES DE EXPORTAÇÃO */}
+                    <div className="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200">
+                      <button
+                        onClick={() => setIsExportModalOpen(true)}
+                        className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-white text-gray-700 hover:bg-gray-50 shadow-sm transition-all"
+                        title="Exportar Relatório de Plantio"
+                      >
+                        <FileText size={14} /> Plantio
+                      </button>
+                      <button
+                        onClick={() => setIsCotacaoModalOpen(true)}
+                        className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm transition-all ml-1"
+                        title="Exportar Lista de Cotação"
+                      >
+                        <FileSpreadsheet size={14} /> Cotação
+                      </button>
+                    </div>
                     <button
                       onClick={() => setShowTaxaBags(prev => !prev)}
                       className="text-xs px-3 py-2 rounded-xl border bg-white hover:bg-gray-50"
@@ -493,87 +546,90 @@ export default function PlanejarVariedades() {
                 <div className="flex-1 overflow-hidden flex flex-col lg:flex-row w-full max-w-[1920px] mx-auto transition-all duration-300">
                   
                   {/* PAINEL LATERAL DE FILTROS E RESUMO */}
-                  <div className={`shrink-0 w-full ${isSidebarOpen ? 'lg:w-80' : 'lg:w-[400px] xl:w-[480px]'} lg:h-full lg:overflow-y-auto bg-gray-50/50 lg:border-r border-gray-200 p-4 lg:p-6 transition-all duration-300 custom-scrollbar`}>
-                    
-                    <div className="sm:hidden mb-6 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Ações em Lote</h3>
-                      <div className="flex items-center gap-2 w-full">
-                        {!selectionMode ? (
-                          <>
-                            <button onClick={() => setSelectionMode('variedades')} className="flex-1 text-blue-600 bg-white border border-blue-200 py-3 rounded-xl shadow-sm hover:bg-blue-50 transition-colors flex items-center justify-center gap-2">
-                              <Sprout size={16} /> <span className="font-semibold text-sm">Sementes</span>
-                            </button>
-                            <button onClick={() => setSelectionMode('taxas')} className="flex-1 text-orange-600 bg-white border border-orange-200 py-3 rounded-xl shadow-sm hover:bg-orange-50 transition-colors flex items-center justify-center gap-2">
-                              <Calculator size={16} /> <span className="font-semibold text-sm">Taxas</span>
-                            </button>
-                          </>
-                        ) : (
-                          <div className="flex items-center gap-2 animate-fade-in w-full">
-                            <button onClick={() => setLoteSelecionados(loteSelecionados.length === todosUids.length ? [] : todosUids)} className={`flex-1 text-sm font-semibold py-3 rounded-xl border shadow-sm transition-colors whitespace-nowrap ${selectionMode === 'variedades' ? 'text-blue-700 bg-blue-50 border-blue-200' : 'text-orange-700 bg-orange-50 border-orange-200'}`}>
-                              {loteSelecionados.length === todosUids.length ? 'Desmarcar' : 'Todos'}
-                            </button>
-                            <button onClick={() => { setSelectionMode(null); setLoteSelecionados([]); }} className="text-gray-500 hover:text-red-500 bg-white border border-gray-200 p-3 rounded-xl shadow-sm shrink-0 flex items-center justify-center">
-                              <X size={18} />
-                            </button>
-                          </div>
-                        )}
+                  {showFiltersPanel && (
+                    <div className={`shrink-0 w-full ${isSidebarOpen ? 'lg:w-80' : 'lg:w-[400px] xl:w-[480px]'} lg:h-full lg:overflow-y-auto bg-gray-50/50 lg:border-r border-gray-200 p-4 lg:p-6 transition-all duration-300 custom-scrollbar animate-fade-in`}>
+                      
+                      <div className="sm:hidden mb-6 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Ações em Lote</h3>
+                        <div className="flex items-center gap-2 w-full">
+                          {!selectionMode ? (
+                            <>
+                              <button onClick={() => setSelectionMode('variedades')} className="flex-1 text-blue-600 bg-white border border-blue-200 py-3 rounded-xl shadow-sm hover:bg-blue-50 transition-colors flex items-center justify-center gap-2">
+                                <Sprout size={16} /> <span className="font-semibold text-sm">Sementes</span>
+                              </button>
+                              <button onClick={() => setSelectionMode('taxas')} className="flex-1 text-orange-600 bg-white border border-orange-200 py-3 rounded-xl shadow-sm hover:bg-orange-50 transition-colors flex items-center justify-center gap-2">
+                                <Calculator size={16} /> <span className="font-semibold text-sm">Taxas</span>
+                              </button>
+                            </>
+                          ) : (
+                            <div className="flex items-center gap-2 animate-fade-in w-full">
+                              <button onClick={() => setLoteSelecionados(loteSelecionados.length === todosUids.length ? [] : todosUids)} className={`flex-1 text-sm font-semibold py-3 rounded-xl border shadow-sm transition-colors whitespace-nowrap ${selectionMode === 'variedades' ? 'text-blue-700 bg-blue-50 border-blue-200' : 'text-orange-700 bg-orange-50 border-orange-200'}`}>
+                                {loteSelecionados.length === todosUids.length ? 'Desmarcar' : 'Todos'}
+                              </button>
+                              <button onClick={() => { setSelectionMode(null); setLoteSelecionados([]); }} className="text-gray-500 hover:text-red-500 bg-white border border-gray-200 p-3 rounded-xl shadow-sm shrink-0 flex items-center justify-center">
+                                <X size={18} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center justify-between mb-3 px-1">
-                      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Resumo e Filtros</h3>
-                      <button
-                        onClick={() => setFiltroVariedade(null)}
-                        className={`text-[10px] px-2 py-1 rounded-lg border transition-all flex items-center gap-1 whitespace-nowrap ${!filtroVariedade ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`}
-                      >
-                        <Filter size={10} className="shrink-0" /> 
-                        <span>Total {resumoDinamico.areaTotalPlanejada.toLocaleString('pt-BR')}ha {showTaxaBags && totalGeralEmbalagens > 0 && ` (${totalGeralEmbalagens.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ${tipoEmbGeral})`}</span>
-                      </button>
-                    </div>
-                    
-                    <div className="flex flex-col gap-2 pb-8">
-                      <div className="flex items-center gap-2 px-1 mb-1">
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Ordenar por:</span>
-                        <button onClick={() => setFilterSortBy('nome')} className={`text-[11px] px-2.5 py-1 rounded-md transition-all font-semibold ${filterSortBy === 'nome' ? 'bg-gray-200 text-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}>Nome</button>
-                        <button onClick={() => setFilterSortBy('area')} className={`text-[11px] px-2.5 py-1 rounded-md transition-all font-semibold ${filterSortBy === 'area' ? 'bg-gray-200 text-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}>Área</button>
+                      <div className="flex items-center justify-between mb-3 px-1">
+                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Resumo e Filtros</h3>
+                        <button
+                          onClick={() => setFiltroVariedade(null)}
+                          className={`text-[10px] px-2 py-1 rounded-lg border transition-all flex items-center gap-1 whitespace-nowrap ${!filtroVariedade ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`}
+                        >
+                          <Filter size={10} className="shrink-0" /> 
+                          <span>Total {resumoDinamico.areaTotalPlanejada.toLocaleString('pt-BR')}ha {showTaxaBags && totalGeralEmbalagens > 0 && ` (${totalGeralEmbalagens.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ${tipoEmbGeral})`}</span>
+                        </button>
                       </div>
                       
-                      {resumoDinamico.areaTotalLivre > 0 && (
-                        <div className="flex items-center justify-between p-3 rounded-xl border border-dashed border-gray-300 bg-gray-50/80 transition-all">
-                          <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Ainda Livre</span>
-                          <span className="font-black text-sm text-gray-500">{resumoDinamico.areaTotalLivre.toLocaleString('pt-BR')} ha</span>
+                      <div className="flex flex-col gap-2 pb-8">
+                        <div className="flex items-center gap-2 px-1 mb-1">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Ordenar por:</span>
+                          <button onClick={() => setFilterSortBy('nome')} className={`text-[11px] px-2.5 py-1 rounded-md transition-all font-semibold ${filterSortBy === 'nome' ? 'bg-gray-200 text-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}>Nome</button>
+                          <button onClick={() => setFilterSortBy('area')} className={`text-[11px] px-2.5 py-1 rounded-md transition-all font-semibold ${filterSortBy === 'area' ? 'bg-gray-200 text-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}>Área</button>
                         </div>
-                      )}
-
-                     {[...resumoDinamico.lista].sort((a, b) => filterSortBy === 'nome' ? a.nome.localeCompare(b.nome) : b.ha - a.ha).map((item) => {
-                        const corVar = getVarColor(item.id);
-                        const isSelected = filtroVariedade === item.nome; // Filtra pelo NOME
-                        const nomeVar = item.nome;
-                        return (
-                          <div 
-                            key={item.nome} // Chave pelo NOME
-                            onClick={() => setFiltroVariedade(isSelected ? null : item.nome)} // Seta o NOME
-                            className="flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all hover:bg-gray-50 group"
-                            style={{ border: `1px solid ${isSelected ? corVar : '#e5e7eb'}`, backgroundColor: isSelected ? `${corVar}05` : '#fff' }}
-                          >
-                            <div className="flex items-center gap-2.5 flex-1 min-w-0 pr-2">
-                              <Sprout size={16} className="shrink-0" style={{ color: corVar }} />
-                              <span className={`text-sm font-semibold truncate ${isSelected ? 'text-gray-900' : 'text-gray-600 group-hover:text-gray-800'}`}>{nomeVar}</span>
-                            </div>
-                            <div className="flex items-center gap-3 shrink-0">
-                              <span className="font-bold text-sm text-gray-800">{item.ha.toLocaleString('pt-BR')} <span className="font-medium text-xs text-gray-400">ha</span></span>
-                              {showTaxaBags && item.embalagens > 0 && (
-                                <span className="text-xs font-semibold text-gray-500 flex items-center gap-1.5 bg-gray-50/80 px-2 py-1 rounded-md border border-gray-100 min-w-[70px] justify-center">
-                                  <Package size={12} className="text-gray-400 shrink-0" />
-                                  {item.embalagens.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} {item.tipoEmb}
-                                </span>
-                              )}
-                            </div>
+                        
+                        {resumoDinamico.areaTotalLivre > 0 && (
+                          <div className="flex items-center justify-between p-3 rounded-xl border border-dashed border-gray-300 bg-gray-50/80 transition-all">
+                            <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Ainda Livre</span>
+                            <span className="font-black text-sm text-gray-500">{resumoDinamico.areaTotalLivre.toLocaleString('pt-BR')} ha</span>
                           </div>
-                        )
-                      })}
+                        )}
+
+                        {[...resumoDinamico.lista].sort((a, b) => filterSortBy === 'nome' ? a.nome.localeCompare(b.nome) : b.ha - a.ha).map((item) => {
+                          const corVar = getVarColor(item.id);
+                          const isSelected = filtroVariedade === item.nome; // Filtra pelo NOME
+                          const nomeVar = item.nome;
+                          return (
+                            <div 
+                              key={item.nome} // Chave pelo NOME
+                              onClick={() => setFiltroVariedade(isSelected ? null : item.nome)} // Seta o NOME
+                              className="flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all hover:bg-gray-50 group"
+                              style={{ border: `1px solid ${isSelected ? corVar : '#e5e7eb'}`, backgroundColor: isSelected ? `${corVar}05` : '#fff' }}
+                            >
+                              <div className="flex items-center gap-2.5 flex-1 min-w-0 pr-2">
+                                <Sprout size={16} className="shrink-0" style={{ color: corVar }} />
+                                <span className={`text-sm font-semibold truncate ${isSelected ? 'text-gray-900' : 'text-gray-600 group-hover:text-gray-800'}`}>{nomeVar}</span>
+                              </div>
+                              <div className="flex items-center gap-3 shrink-0">
+                                <span className="font-bold text-sm text-gray-800">{item.ha.toLocaleString('pt-BR')} <span className="font-medium text-xs text-gray-400">ha</span></span>
+                                {showTaxaBags && item.embalagens > 0 && (
+                                  <span className="text-xs font-semibold text-gray-500 flex items-center gap-1.5 bg-gray-50/80 px-2 py-1 rounded-md border border-gray-100 min-w-[70px] justify-center">
+                                    <Package size={12} className="text-gray-400 shrink-0" />
+                                    {item.embalagens.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} {item.tipoEmb}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  )}
+
                   {/* === LISTA DE TALHÕES (SCROLL INDEPENDENTE) === */}
                   <div className="flex-1 lg:h-full lg:overflow-y-auto bg-gray-50 p-4 lg:p-8 custom-scrollbar">
                     <div className="max-w-4xl mx-auto space-y-6 pb-32 lg:pb-16">
@@ -586,11 +642,11 @@ export default function PlanejarVariedades() {
 
                         return (
                           <div key={retiro} className="mb-6">
-                            <div className="mb-4 border-b border-gray-100 pb-3 flex items-center gap-2">
-                              <div className="bg-gray-100 p-2 rounded-lg">
-                                <Map size={16} className="text-gray-500" />
+                            <div className="mb-2 border-b border-gray-100 pb-2 flex items-center gap-2">
+                              <div className="bg-gray-100 p-1.5 rounded-lg">
+                                <Map size={14} className="text-gray-500" />
                               </div>
-                              <span className="text-sm font-bold text-gray-600 uppercase tracking-widest">{retiro}</span>
+                              <span className="text-xs font-bold text-gray-600 uppercase tracking-widest">{retiro}</span>
                             </div>
 
                             <div className="space-y-1.5">
@@ -643,22 +699,42 @@ export default function PlanejarVariedades() {
                                               <span className="text-[10px] xl:text-[11px] font-semibold text-gray-400 pr-2 xl:pr-3">ha</span>
                                             </div>
 
-                                            {/* SEMENTE */}
+                                          {/* SEMENTE */}
                                             <div 
                                               onClick={(e) => { e.stopPropagation(); if(selectionMode) handleToggleLote(uid); }}
                                               className={`bg-white border shadow-sm rounded-xl flex-1 xl:w-64 shrink-0 transition-all overflow-hidden ${selectionMode === 'variedades' ? `cursor-pointer border-gray-300 ${modeColorHover}` : 'border-gray-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100'} ${!row.variedadeId ? 'bg-blue-50/50' : ''} ${selectionMode === 'taxas' ? 'opacity-60' : ''}`}
                                               style={{ borderLeft: row.variedadeId ? `4px solid ${getVarColor(row.variedadeId)}` : undefined }}
                                             >
-                                              <select
-                                                value={row.variedadeId}
-                                                onChange={(e) => handleUpdateSelect(uid, row.tempId, 'variedadeId', e.target.value)}
-                                                className={`w-full h-full py-3 px-3 outline-none font-bold text-gray-800 text-xs xl:text-sm bg-transparent ${selectionMode ? 'pointer-events-none' : 'cursor-pointer'}`}
-                                                tabIndex={selectionMode ? -1 : 0}
-                                              >
-                                                <option value="" disabled>Selecione a Semente...</option>
-                                                {/* FILTRA APENAS VARIEDADES DAQUELA CULTURA ESPECÍFICA */}
-                                                {(variedades || []).filter(v => v.culturaId === config.culturaId).map(v => <option key={v.id} value={v.id}>{v.nome}</option>)}
-                                              </select>
+                                              <input
+                                                list={`list-${config.culturaId}-${row.tempId}`}
+                                                placeholder="Pesquisar ou Nova Semente..."
+                                                value={row.variedadeNomeInput !== undefined ? row.variedadeNomeInput : getVariedadeNome(row.variedadeId)}
+                                                onChange={(e) => {
+                                                  const val = e.target.value;
+                                                  handleUpdateSelect(uid, row.tempId, 'variedadeNomeInput', val);
+                                                  const matched = (variedades || []).find(v => v.nome.toLowerCase() === val.toLowerCase() && v.culturaId === config.culturaId);
+                                                  if (matched) handleUpdateSelect(uid, row.tempId, 'variedadeId', matched.id);
+                                                }}
+                                                onBlur={(e) => {
+                                                  const val = e.target.value.trim();
+                                                  handleUpdateSelect(uid, row.tempId, 'variedadeNomeInput', undefined);
+                                                  if (!val) { handleUpdateSelect(uid, row.tempId, 'variedadeId', ''); return; }
+                                                  
+                                                  const matched = (variedades || []).find(v => v.nome.toLowerCase() === val.toLowerCase() && v.culturaId === config.culturaId);
+                                                  if (matched) {
+                                                    handleUpdateSelect(uid, row.tempId, 'variedadeId', matched.id);
+                                                  } else {
+                                                    const newId = generateId();
+                                                    if(setVariedades) setVariedades(prev => [...prev, { id: newId, nome: val, culturaId: config.culturaId, isSuggested: true, cor: '#8b5cf6'}]);
+                                                    handleUpdateSelect(uid, row.tempId, 'variedadeId', newId);
+                                                  }
+                                                }}
+                                                className={`w-full h-full py-3 px-3 outline-none font-bold text-gray-800 text-xs xl:text-sm bg-transparent ${selectionMode ? 'pointer-events-none' : ''}`}
+                                                disabled={!!selectionMode}
+                                              />
+                                              <datalist id={`list-${config.culturaId}-${row.tempId}`}>
+                                                {(variedades || []).filter(v => v.culturaId === config.culturaId).map(v => <option key={v.id} value={v.nome} />)}
+                                              </datalist>
                                             </div>
 
                                             {/* BOTÃO REMOVER DIVISÃO */}
@@ -752,36 +828,74 @@ export default function PlanejarVariedades() {
           </div>
         )}
 
-        {isModalVarOpen && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in" onClick={() => setIsModalVarOpen(false)}>
-            <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl border-t-8 border-blue-600" onClick={e => e.stopPropagation()}>
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="font-black text-gray-800 text-xl flex items-center gap-2"><Sprout className="text-blue-500" size={24}/> Sementes</h3>
-                <button onClick={() => setIsModalVarOpen(false)} className="bg-gray-100 text-gray-400 p-2 rounded-full hover:bg-red-50 hover:text-red-500 transition-colors"><X size={20}/></button>
-              </div>
-              <div className="flex flex-col gap-2 mb-8 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
-                <div onClick={() => setLoteVarId('nenhuma')} className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all cursor-pointer ${loteVarId === 'nenhuma' ? 'border-gray-400 bg-gray-50 shadow-sm' : 'border-gray-100 bg-white hover:border-gray-300'}`}>
-                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center shrink-0"><X size={16} className="text-gray-500" /></div>
-                  <span className={`font-bold text-sm ${loteVarId === 'nenhuma' ? 'text-gray-900' : 'text-gray-500'}`}>Limpar Semente</span>
-                </div>
-                {(variedades || []).filter(v => selectedCulturaIds.includes(v.culturaId)).map(v => {
-                  const isSelected = loteVarId === v.id;
-                  return (
-                    <div key={v.id} onClick={() => setLoteVarId(v.id)} className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all cursor-pointer ${isSelected ? 'border-blue-500 bg-blue-50 shadow-md ring-1 ring-blue-500' : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50'}`}>
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 border border-gray-200" style={{ backgroundColor: `${v.cor}15` }}>
-                        <Sprout size={16} style={{ color: v.cor }} />
-                      </div>
-                      <span className={`font-bold text-sm ${isSelected ? 'text-gray-900' : 'text-gray-700'}`}>{v.nome}</span>
-                    </div>
-                  );
-                })}
-              </div>
-              <button onClick={() => confirmarModalLote('variedades')} className="w-full py-4 bg-blue-600 text-white font-black text-lg rounded-2xl hover:bg-blue-700 shadow-md transition-all active:scale-95">Confirmar para {loteSelecionados.length} talhões</button>
-            </div>
-          </div>
-        )}
+      {isModalVarOpen && (() => {
+          // Lógica de Deduplicação pelo Nome e Filtro
+          const uniqueVars = [];
+          const seenNames = new Set();
+          (variedades || []).forEach(v => {
+            if (selectedCulturaIds.includes(v.culturaId) && !seenNames.has(v.nome.toLowerCase())) {
+              seenNames.add(v.nome.toLowerCase());
+              uniqueVars.push(v);
+            }
+          });
+          const filteredVars = uniqueVars.filter(v => v.nome.toLowerCase().includes(searchTermVar.toLowerCase()));
 
-        {/* MODAL DE EXPORTAÇÃO PDF */}
+          return (
+            <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in" onClick={() => setIsModalVarOpen(false)}>
+              <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl border-t-8 border-blue-600 flex flex-col" style={{ maxHeight: '85vh' }} onClick={e => e.stopPropagation()}>
+                
+                <div className="p-6 pb-4 shrink-0 border-b border-gray-100">
+                  <div className="flex justify-between items-center mb-5">
+                    <h3 className="font-black text-gray-800 text-xl flex items-center gap-2"><Sprout className="text-blue-500" size={24}/> Sementes em Lote</h3>
+                    <button onClick={() => setIsModalVarOpen(false)} className="bg-gray-100 text-gray-400 p-2 rounded-full hover:bg-red-50 hover:text-red-500 transition-colors"><X size={20}/></button>
+                  </div>
+
+                  <input 
+                    type="text"
+                    placeholder="Pesquisar ou criar nova..."
+                    value={searchTermVar}
+                    onChange={e => { setSearchTermVar(e.target.value); setLoteVarNome(e.target.value); }}
+                    className="w-full bg-gray-50 border border-gray-200 px-4 py-3 rounded-xl font-semibold text-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                  />
+                  {searchTermVar && !uniqueVars.some(v => v.nome.toLowerCase() === searchTermVar.toLowerCase()) && (
+                    <p className="text-[11px] text-blue-600 mt-2 ml-1 font-bold flex items-center gap-1">
+                      <CheckSquare size={12}/> "{searchTermVar}" será criada como Sugestão!
+                    </p>
+                  )}
+                </div>
+                
+                <div className="p-6 py-4 flex-1 overflow-y-auto custom-scrollbar">
+                  <div onClick={() => { setLoteVarNome('nenhuma'); setSearchTermVar(''); }} className={`flex items-center gap-3 p-3 mb-4 rounded-xl border-2 transition-all cursor-pointer ${loteVarNome === 'nenhuma' ? 'border-gray-400 bg-gray-50' : 'border-gray-100 bg-white hover:border-gray-300'}`}>
+                    <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center shrink-0"><X size={14} className="text-gray-500" /></div>
+                    <span className={`font-bold text-sm ${loteVarNome === 'nenhuma' ? 'text-gray-900' : 'text-gray-500'}`}>Limpar Semente</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {filteredVars.map(v => {
+                      const isSelected = loteVarNome.toLowerCase() === v.nome.toLowerCase();
+                      return (
+                        <div key={v.nome} onClick={() => { setLoteVarNome(v.nome); setSearchTermVar(v.nome); }} className={`flex items-center gap-2 p-2.5 rounded-xl border-2 transition-all cursor-pointer ${isSelected ? 'border-blue-500 bg-blue-50 shadow-sm' : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50'}`}>
+                          <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 border border-gray-200" style={{ backgroundColor: `${v.cor}15` }}>
+                            <Sprout size={14} style={{ color: v.cor }} />
+                          </div>
+                          <span className={`font-bold text-xs truncate ${isSelected ? 'text-gray-900' : 'text-gray-700'}`} title={v.nome}>{v.nome}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="p-6 pt-4 shrink-0 border-t border-gray-100">
+                  <button onClick={() => confirmarModalLote('variedades')} disabled={!loteVarNome} className={`w-full py-4 text-white font-black text-lg rounded-2xl shadow-md transition-all active:scale-95 ${!loteVarNome ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>
+                    Confirmar para {loteSelecionados.length} talhões
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* MODAIS DE EXPORTAÇÃO PDF */}
         <ModalExportPdfPlantio
           isOpen={isExportModalOpen}
           onClose={() => setIsExportModalOpen(false)}
@@ -789,6 +903,17 @@ export default function PlanejarVariedades() {
           safraNome={(planosSafra || []).find(s => s.id === selectedSafraId)?.safra}
           editVarConfig={editVarConfig}
           talhoes={talhoes}
+          variedades={variedades}
+          taxasPlantio={taxasPlantio}
+          embalagens={embalagens}
+        />
+
+        <ModalExportPdfCotacao
+          isOpen={isCotacaoModalOpen}
+          onClose={() => setIsCotacaoModalOpen(false)}
+          culturaNome={selectedCulturaIds.map(getCulturaNome).join(' + ')}
+          safraNome={(planosSafra || []).find(s => s.id === selectedSafraId)?.safra}
+          editVarConfig={editVarConfig}
           variedades={variedades}
           taxasPlantio={taxasPlantio}
           embalagens={embalagens}
@@ -803,4 +928,4 @@ export default function PlanejarVariedades() {
       `}}/>
     </div>
   );
-} 
+}
