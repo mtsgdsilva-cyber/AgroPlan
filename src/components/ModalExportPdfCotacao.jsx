@@ -15,6 +15,7 @@ export default function ModalExportPdfCotacao({
   embalagens 
 }) {
   const [incluirArea, setIncluirArea] = useState(true);
+  const [observacao, setObservacao] = useState(''); // NOVO: Estado para a observação
 
   if (!isOpen) return null;
 
@@ -156,8 +157,25 @@ export default function ModalExportPdfCotacao({
       }
     });
 
+    // --- OBSERVAÇÕES (OPCIONAL) ---
+    let finalY = doc.lastAutoTable.finalY + 10;
+
+    if (observacao.trim()) {
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(60);
+      doc.text('Observações:', 14, finalY);
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(80);
+      
+      // Quebra o texto automaticamente para não sair da folha
+      const splitObs = doc.splitTextToSize(observacao, pageWidth - 28);
+      doc.text(splitObs, 14, finalY + 5);
+    }
+
     // --- ASSINATURAS (FIXAS NO RODAPÉ) ---
-    const signY = pageHeight - 25; 
+    const signY = pageHeight - 25;
     doc.setDrawColor(0);
     doc.setLineWidth(0.5); // Linha mais fina para assinatura
     doc.line(30, signY, 90, signY);
@@ -201,6 +219,19 @@ export default function ModalExportPdfCotacao({
               Imprimir coluna de "Área Planejada"
             </span>
           </div>
+        </div>
+
+        {/* CAMPO DE OBSERVAÇÃO */}
+        <div className="mb-6">
+          <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 mb-2 ml-1">
+            Observações (Opcional)
+          </label>
+          <textarea
+            value={observacao}
+            onChange={(e) => setObservacao(e.target.value)}
+            placeholder="Ex: Condições de pagamento, prazo de entrega, sementes tratadas..."
+            className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm text-gray-700 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all resize-none h-24 custom-scrollbar"
+          />
         </div>
 
         <button onClick={gerarPDF} className="w-full py-4 bg-emerald-600 text-white font-black rounded-xl hover:bg-emerald-700 shadow-md transition-all flex items-center justify-center gap-2 active:scale-95">
